@@ -17,12 +17,14 @@
 ZYNTHIAN_CONFIG_DIR=${ZYNTHIAN_CONFIG_DIR:-/zynthian/config}
 ZYNTHIAN_SYS_DIR=${ZYNTHIAN_SYS_DIR:-/zynthian/zynthian-sys}
 
-PORT=5555
-FEEDBACK_PORT=5556
+PORT=${PORT:-5555}
+FEEDBACK_PORT=${FEEDBACK_PORT:-5556}
 PHD_CONF="$ZYNTHIAN_CONFIG_DIR/plugin-hostd.conf"
 PHD_CONF_DEFAULT="$ZYNTHIAN_SYS_DIR/config/plugin-hostd.conf"
-PHD_STATE=/run/plugin-hostd
-READY_TIMEOUT=10
+PHD_STATE=${PHD_STATE:-/run/plugin-hostd}
+PHD_LOG="$PHD_STATE/plugin-hostd.log"
+READY_TIMEOUT=${READY_TIMEOUT:-10}
+PHD_PROTOCOL=${PHD_PROTOCOL:-/usr/share/plugin-hostd/protocol.json}
 
 JACK_LOAD="${JACKD_BIN_PATH:+$JACKD_BIN_PATH/}jack_load"
 JACK_UNLOAD="${JACKD_BIN_PATH:+$JACKD_BIN_PATH/}jack_unload"
@@ -87,8 +89,17 @@ start_jack_load() {
 	"$JACK_LOAD" -i "$PORT" mod-host
 }
 
+# The line plugin-hostd declares for ready, from the protocol file its package installs
+declared_ready_line() {
+	python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["readiness"]["daemon_line"])' \
+		"$PHD_PROTOCOL" 2>/dev/null || {
+		echo "plugin-hostd declares no readiness line: $PHD_PROTOCOL is not readable" >&2
+		return 1
+	}
+}
+
 start_plugin_hostd() {
-	local pid i
+	local pid i ready_line
 	stop_internal
 	if [ -n "$(phd_pids)" ]; then
 		echo "plugin-hostd is already running on port $PORT"
@@ -102,23 +113,25 @@ start_plugin_hostd() {
 		echo "Installing $PHD_CONF from $PHD_CONF_DEFAULT"
 		cp "$PHD_CONF_DEFAULT" "$PHD_CONF" || return 1
 	fi
+	ready_line=$(declared_ready_line) || return 1
 	mkdir -p "$PHD_STATE"
 	echo "Starting plugin-hostd on ports $PORT and $FEEDBACK_PORT with $PHD_CONF"
-	plugin-hostd -n -p "$PORT" -f "$FEEDBACK_PORT" -c "$PHD_CONF" &
+	: >"$PHD_LOG"
+	plugin-hostd -n -p "$PORT" -f "$FEEDBACK_PORT" -c "$PHD_CONF" >"$PHD_LOG" 2>&1 &
 	pid=$!
-	# Ready once both ports accept, as plugin-hostd itself defines it
+	# Ready is the line the daemon declares, printed once both its ports accept
 	for ((i = 0; i < READY_TIMEOUT * 10; i++)); do
+		if grep -qxF "$ready_line" "$PHD_LOG"; then
+			return 0
+		fi
 		if ! kill -0 "$pid" 2>/dev/null; then
 			wait "$pid"
-			echo "plugin-hostd exited with code $? before it was ready" >&2
+			echo "plugin-hostd exited with code $? before it was ready, see $PHD_LOG" >&2
 			return 1
-		fi
-		if listening "$PORT" && listening "$FEEDBACK_PORT"; then
-			return 0
 		fi
 		sleep 0.1
 	done
-	echo "plugin-hostd was not ready in $READY_TIMEOUT s" >&2
+	echo "plugin-hostd did not print '$ready_line' in $READY_TIMEOUT s, see $PHD_LOG" >&2
 	kill -TERM "$pid" 2>/dev/null
 	return 1
 }
