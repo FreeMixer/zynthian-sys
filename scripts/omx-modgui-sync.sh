@@ -12,7 +12,7 @@
 # plugin's own bundle is never touched.
 #
 # The descriptor is, in this order: the plugin's declaration in omx-contract
-# (`omx-panel modgui --installed <package>/<name>`, our own plugins), the
+# (`omx-panel descriptors --installed`, then `omx-panel modgui --installed <package>/<name>`; our own plugins), the
 # newest one in DESCRIPTOR_DIRS (written by plugin-hostd and plugin-qualify),
 # or, unless --no-scan, one made here by `plugin-hostd-probe describe`.
 #
@@ -55,18 +55,22 @@ command -v plugin-hostd-probe >/dev/null || scan=0
 conf_dir=$(sed -n 's/^descriptor_dir[[:space:]]\{1,\}//p' "$ZYNTHIAN_CONFIG_DIR/plugin-hostd.conf" 2>/dev/null | tail -n 1)
 [ -n "$conf_dir" ] && DESCRIPTOR_DIRS="$conf_dir:$DESCRIPTOR_DIRS"
 
-contract_dir=$(pkg-config --variable=contractdir omx-contract 2>/dev/null)
+# The descriptors packages installed, one file per line: omx-panel knows where and which contract major
+installed_list=$(omx-panel descriptors --installed) || {
+	echo "omx-modgui-sync: omx-panel descriptors --installed failed" >&2
+	exit 1
+}
 
 mkdir -p "$MODGUI_DIR" "$STATE_DIR"
 
 # One line per LV2 plugin: uri, bundle dir, has a MOD GUI outside MODGUI_DIR
-# (1/0), descriptor (installed:<package>/<name>, file:<path> or -), name.
+# (1/0), descriptor (installed:<package>/<name>:<path>, file:<path> or -), name.
 plan() {
-	python3 -I - "$MODGUI_DIR" "$DESCRIPTOR_DIRS:$SCAN_DIR" "$contract_dir" <<'EOF'
+	python3 -I - "$MODGUI_DIR" "$DESCRIPTOR_DIRS:$SCAN_DIR" "$installed_list" <<'EOF'
 import glob, hashlib, json, os, re, sys
 from urllib.parse import unquote, urlparse
 
-modgui_dir, descriptor_dirs, contract_dir = sys.argv[1:4]
+modgui_dir, descriptor_dirs, installed_list = sys.argv[1:4]
 own = os.path.realpath(modgui_dir)
 os.environ["LV2_PATH"] = ":".join(p for p in os.environ["LV2_PATH"].split(":")
                                   if p and os.path.realpath(p) != own)
@@ -82,12 +86,11 @@ def lv2_uri(path, formats=("lv2",)):
 
 # A declaration names the LV2 URI whatever format it was written for
 installed = {}
-if contract_dir:
-    for path in sorted(glob.glob(os.path.join(contract_dir, "3", "*", "plugins", "*.json"))):
-        uri = lv2_uri(path, ("lv2", "clap"))
-        if uri:
-            parts = path.split(os.sep)
-            installed[uri] = "%s/%s" % (parts[-3], os.path.splitext(parts[-1])[0])
+for path in sorted(installed_list.split("\n")):
+    uri = lv2_uri(path, ("lv2", "clap")) if path else None
+    if uri:
+        parts = path.split(os.sep)
+        installed[uri] = ("%s/%s" % (parts[-3], os.path.splitext(parts[-1])[0]), path)
 
 scanned = {}
 for d in descriptor_dirs.split(":"):
@@ -105,7 +108,7 @@ for plugin in sorted(world.get_all_plugins(), key=lambda p: str(p.get_uri())):
     bundle = unquote(urlparse(str(plugin.get_bundle_uri())).path).rstrip("/")
     has_gui = 1 if len(plugin.get_value(gui)) else 0
     if uri in installed:
-        src = "installed:" + installed[uri]
+        src = "installed:%s:%s" % installed[uri]
     elif uri in scanned:
         src = "file:" + scanned[uri]
     else:
@@ -153,9 +156,10 @@ scan_descriptor() {
 generate() {
 	local uri=$1 name=$2 src=$3 out="$MODGUI_DIR/$2.lv2" tmp args desc_file
 	if [ "${src%%:*}" = installed ]; then
-		args=(--installed "${src#installed:}")
-		desc_file="$contract_dir/3/${src#installed:}"
-		desc_file="${desc_file%/*}/plugins/${desc_file##*/}.json"
+		# installed:<package>/<name>:<descriptor file>
+		desc_file="${src#installed:}"
+		args=(--installed "${desc_file%%:*}")
+		desc_file="${desc_file#*:}"
 	else
 		args=(--descriptor "${src#file:}")
 		desc_file="${src#file:}"
