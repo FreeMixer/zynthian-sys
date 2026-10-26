@@ -96,6 +96,11 @@ rm -f kxstudio-repos_11.1.0_all.deb
 #wget -O - https://deb.zynthian.org/deb-zynthian-org.gpg > /etc/apt/trusted.gpg.d/deb-zynthian-org.gpg
 #echo "deb https://deb.zynthian.org/zynthian-oram bookworm-oram main" > "/etc/apt/sources.list.d/zynthian.list"
 
+# OpenMixer => the package brings the signing key and the apt source
+wget -q https://www.openmixer.org/deb/openmixer-release.deb
+apt-get -y install ./openmixer-release.deb
+rm -f openmixer-release.deb
+
 # Sfizz => Repo version segfaults!!
 #sfizz_url_base="https://download.opensuse.org/repositories/home:/sfztools:/sfizz/Raspbian_12"
 #echo "deb $sfizz_url_base/ /" | sudo tee /etc/apt/sources.list.d/home:sfztools:sfizz.list
@@ -560,6 +565,9 @@ $ZYNTHIAN_RECIPE_DIR/install_mod-host.sh
 
 #Install MOD-UI
 $ZYNTHIAN_RECIPE_DIR/install_mod-ui.sh
+
+# Install OpenMixer: plugin-hostd, omx-clap-host, omx-plugins and omx-panel
+$ZYNTHIAN_RECIPE_DIR/install_openmixer.sh
 
 #Install MOD-SDK
 #$ZYNTHIAN_RECIPE_DIR/install_mod-sdk.sh
