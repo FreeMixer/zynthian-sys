@@ -20,6 +20,22 @@ $ZYNTHIAN_RECIPE_DIR/install_openmixer.sh
 
 It adds the repository if missing and installs or upgrades the packages, so running it again is safe. `scripts/update_system_image.sh` runs it too, so an updated image carries the newest versions.
 
+## plugin-hostd as the mod-host of MOD-UI
+
+MOD-UI talks to a mod-host on port 5555. `ZYNTHIAN_MODHOST_BACKEND` in `zynthian_envars.sh` picks what answers there:
+
+- `jack_load` (the default): mod-host loaded into JACK as an internal client, as before.
+- `plugin-hostd`: plugin-hostd on ports 5555 and 5556, each plugin in a worker process of its own, so a plugin that crashes takes only its own worker down. It runs LV2 and CLAP plugins.
+
+`mod-host.service` runs `sbin/mod-host-backend.sh`, which honours the setting, removes the other backend before it starts and on stop removes whichever one runs. To switch, as root:
+
+```
+/zynthian/zynthian-sys/sbin/set_modhost_backend.sh plugin-hostd
+/zynthian/zynthian-sys/sbin/set_modhost_backend.sh jack_load
+```
+
+It stops MOD-UI and mod-host, writes the setting and starts MOD-UI again if it was running, saying each step. Without an argument it prints the setting and what runs. plugin-hostd reads `/zynthian/config/plugin-hostd.conf`, copied from `config/plugin-hostd.conf` on first use; that file explains each setting. `tests/modhost-backend-check.sh` checks the plugin-hostd backend end to end.
+
 You can learn more about the Zynthian Project in any of our sites: 
 
 + [website](https://zynthian.org)

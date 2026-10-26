@@ -92,6 +92,9 @@ export ZYNTHIAN_USB_MIDI_BY_PORT="0"
 export ZYNTHIAN_AUBIONOTES_OPTIONS="-O complex -t 0.5 -s -88  -p yinfft -l 0.5"
 #export ZYNTHIAN_AUBIONOTES_OPTIONS="-O hfc -t 0.5 -s -60 -p yinfft -l 0.6"
 
+# What runs as mod-host for MOD-UI: jack_load or plugin-hostd (set_modhost_backend.sh)
+export ZYNTHIAN_MODHOST_BACKEND="jack_load"
+
 # Directory Paths
 export ZYNTHIAN_DIR="/zynthian"
 export ZYNTHIAN_CONFIG_DIR="$ZYNTHIAN_DIR/config"
