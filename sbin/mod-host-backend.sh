@@ -5,10 +5,11 @@
 #   mod-host-backend.sh start|stop|status
 #
 # ZYNTHIAN_MODHOST_BACKEND picks the backend:
-#   jack_load     mod-host as a JACK internal client (the default)
-#   plugin-hostd  plugin-hostd, one worker process per plugin
+#   plugin-hostd  plugin-hostd, one worker process per plugin (the default)
+#   jack_load     mod-host as a JACK internal client
 #
 # The value comes from the environment if set, else from zynthian_envars.sh.
+# plugin-hostd falls back to jack_load when plugin-hostd is not installed.
 # Start removes the other backend first, so both never run. Stop removes
 # whichever one is running, whatever the setting says now.
 #******************************************************************************
@@ -33,7 +34,12 @@ get_backend() {
 		backend=$(sed -n 's/^export ZYNTHIAN_MODHOST_BACKEND=["'\'']\{0,1\}\([^"'\'']*\).*/\1/p' \
 			"$ZYNTHIAN_CONFIG_DIR/zynthian_envars.sh" | tail -n 1)
 	fi
-	echo "${backend:-jack_load}"
+	backend=${backend:-plugin-hostd}
+	# Without plugin-hostd installed, the only backend there is
+	if [ "$backend" = plugin-hostd ] && ! command -v plugin-hostd >/dev/null; then
+		backend=jack_load
+	fi
+	echo "$backend"
 }
 
 # PIDs of plugin-hostd daemons on our command port
