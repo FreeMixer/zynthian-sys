@@ -38,7 +38,8 @@ done
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-cp "$QUALIFY_CONF" "$work/qualify.conf.package"
+# The package's qualify.conf sets nothing: every line a comment
+sed 's/^\([[:space:]]*[^#[:space:]]\)/#\1/' "$QUALIFY_CONF" >"$work/qualify.conf.package"
 mkdir -p /zynthian/zynthian-my-data /zynthian/zynthian-data /zynthian/zynthian-ui /zynthian/zynthian-plugins/lv2
 
 # shellcheck disable=SC1090
