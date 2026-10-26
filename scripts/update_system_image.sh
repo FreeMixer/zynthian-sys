@@ -95,6 +95,9 @@ cd ./scripts
 #apt-get -y update --allow-releaseinfo-change
 #apt-get -y upgrade
 
+# Add the OpenMixer repository if missing and upgrade its packages
+$ZYNTHIAN_RECIPE_DIR/install_openmixer.sh
+
 #------------------------------------------------------------------------------
 # Adjustments ...
 #------------------------------------------------------------------------------
