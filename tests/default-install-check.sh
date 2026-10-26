@@ -111,6 +111,8 @@ assert_defaults() {
 		test "$(envar "$SYS_DIR/scripts/zynthian_envars.sh" ZYNTHIAN_MODHOST_BACKEND)" = plugin-hostd
 	check "defaults: ZYNTHIAN_PLUGIN_ENGINE=plugin-hostd" \
 		test "$(envar "$SYS_DIR/scripts/zynthian_envars.sh" ZYNTHIAN_PLUGIN_ENGINE)" = plugin-hostd
+	check "defaults: ZYNTHIAN_PLUGIN_HOSTD_PORT is declared, next to ZYNTHIAN_MODHOST_BACKEND" \
+		test "$(envar "$SYS_DIR/scripts/zynthian_envars.sh" ZYNTHIAN_PLUGIN_HOSTD_PORT)" = 5570
 	check "mod-host-backend.sh picks plugin-hostd" \
 		grep -qx 'setting: plugin-hostd' <(ZYNTHIAN_CONFIG_DIR=$CONFIG_DIR "$SYS_DIR/sbin/mod-host-backend.sh" status)
 	sed '/ZYNTHIAN_MODHOST_BACKEND/d' "$ENVARS" >"$work/no-backend/zynthian_envars.sh"
