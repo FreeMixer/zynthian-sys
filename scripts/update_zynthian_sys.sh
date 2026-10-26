@@ -185,8 +185,9 @@ if [ ${MACHINE_HW_NAME} = "armv7l" ]; then
 elif [ ${MACHINE_HW_NAME} = "aarch64" ]; then
 	arch_libdir="aarch64-linux-gnu"
 fi
-# The last entry holds the MOD GUIs made by omx-modgui-sync.sh
-LV2_PATH="/usr/lib/lv2:/usr/lib/$arch_libdir/lv2:/usr/local/lib/lv2:/usr/local/lib/$arch_libdir/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2-presets:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/modgui"
+# $ZYNTHIAN_MY_DATA_DIR/plugins/lv2 holds the user's plugins (config/qualify.conf
+# lists it too). The last entry holds the MOD GUIs made by omx-modgui-sync.sh
+LV2_PATH="/usr/lib/lv2:/usr/lib/$arch_libdir/lv2:/usr/local/lib/lv2:/usr/local/lib/$arch_libdir/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_MY_DATA_DIR/plugins/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2-presets:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/modgui"
 LV2_PATH_ESC=${LV2_PATH//\//\\\/}
 sed -i -e "s/^export LV2_PATH\=.*$/export LV2_PATH=\"$LV2_PATH_ESC\"/" $ZYNTHIAN_CONFIG_DIR/zynthian_envars.sh
 
@@ -592,6 +593,10 @@ if [ "$(systemctl is-enabled omx-modgui-sync)" != "enabled" ]; then
 	echo "Enabling the MOD GUI sync ..."
 	systemctl enable omx-modgui-sync
 fi
+
+# OpenMixer as the default, once: packages, plugin-hostd as mod-host and UI
+# engine, the qualification sync. It restarts nothing and says what changed.
+$ZYNTHIAN_RECIPE_DIR/install_openmixer.sh
 
 # Enable the pwm fan service if an EPDF hat is detected
 if [ "$ZYNTHIAN_EPDF_HAT" == "1" ]; then

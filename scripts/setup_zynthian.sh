@@ -39,7 +39,7 @@ else
 	if [ ! -d "zynthian-sys" ]; then
 		apt-get update
 		apt-get -y install apt-utils git parted screen
-		git clone -b vangelis https://github.com/zynthian/zynthian-sys.git
+		git clone -b vangelis https://github.com/FreeMixer/zynthian-sys.git
 	fi
 	cd zynthian-sys/scripts
 	./setup_system_raspioslite_64bit_trixie.sh
