@@ -577,6 +577,8 @@ sed -i -e "s/#ZYNTHIAN_DIR#/$ZYNTHIAN_DIR_ESC/g" /etc/systemd/system/filebrowser
 sed -i -e "s/#ZYNTHIAN_SYS_DIR#/$ZYNTHIAN_SYS_DIR_ESC/g" /etc/systemd/system/filebrowser.service
 sed -i -e "s/#ZYNTHIAN_SW_DIR#/$ZYNTHIAN_SW_DIR_ESC/g" /etc/systemd/system/filebrowser.service
 
+sed -i -e "s/#LV2_PATH#/$LV2_PATH_ESC/g" /etc/systemd/system/omx-modgui-sync.service.d/zynthian.conf
+
 # Reload Systemd scripts
 systemctl daemon-reload
 
