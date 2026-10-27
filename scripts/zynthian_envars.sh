@@ -92,8 +92,12 @@ export ZYNTHIAN_USB_MIDI_BY_PORT="0"
 export ZYNTHIAN_AUBIONOTES_OPTIONS="-O complex -t 0.5 -s -88  -p yinfft -l 0.5"
 #export ZYNTHIAN_AUBIONOTES_OPTIONS="-O hfc -t 0.5 -s -60 -p yinfft -l 0.6"
 
-# What runs as mod-host for MOD-UI: jack_load or plugin-hostd (set_modhost_backend.sh)
-export ZYNTHIAN_MODHOST_BACKEND="jack_load"
+# What runs as mod-host for MOD-UI: plugin-hostd or jack_load (set_modhost_backend.sh)
+export ZYNTHIAN_MODHOST_BACKEND="plugin-hostd"
+# The engine the UI menus offer LV2 plugins through: plugin-hostd or jalv
+export ZYNTHIAN_PLUGIN_ENGINE="plugin-hostd"
+# The command port of the plugin-hostd the UI engine runs (mod-host keeps 5555 for MOD-UI)
+export ZYNTHIAN_PLUGIN_HOSTD_PORT="5570"
 
 # Directory Paths
 export ZYNTHIAN_DIR="/zynthian"
@@ -107,4 +111,4 @@ export ZYNTHIAN_EX_DATA_DIR="/media/root"
 export ZYNTHIAN_RECIPE_DIR="$ZYNTHIAN_SYS_DIR/scripts/recipes"
 export ZYNTHIAN_PLUGINS_DIR="$ZYNTHIAN_DIR/zynthian-plugins"
 export ZYNTHIAN_PLUGINS_SRC_DIR="$ZYNTHIAN_SW_DIR/plugins"
-export LV2_PATH="/usr/lib/lv2:/usr/lib/arm-linux-gnueabihf/lv2:/usr/local/lib/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2"
+export LV2_PATH="/usr/lib/lv2:/usr/lib/arm-linux-gnueabihf/lv2:/usr/local/lib/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_MY_DATA_DIR/plugins/lv2:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2"

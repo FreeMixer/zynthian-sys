@@ -46,8 +46,9 @@ source "zynthian_envars_extended.sh"
 [ -n "$ZYNTHIAN_INCLUDE_PIP" ] || ZYNTHIAN_INCLUDE_PIP=yes
 [ -n "$ZYNTHIAN_CHANGE_HOSTNAME" ] || ZYNTHIAN_CHANGE_HOSTNAME=yes
 
-[ -n "$ZYNTHIAN_SYS_REPO" ] || ZYNTHIAN_SYS_REPO="https://github.com/zynthian/zynthian-sys.git"
-[ -n "$ZYNTHIAN_UI_REPO" ] || ZYNTHIAN_UI_REPO="https://github.com/zynthian/zynthian-ui.git"
+# zynthian-sys and zynthian-ui with OpenMixer in them
+[ -n "$ZYNTHIAN_SYS_REPO" ] || ZYNTHIAN_SYS_REPO="https://github.com/FreeMixer/zynthian-sys.git"
+[ -n "$ZYNTHIAN_UI_REPO" ] || ZYNTHIAN_UI_REPO="https://github.com/FreeMixer/zynthian-ui.git"
 [ -n "$ZYNTHIAN_ZYNCODER_REPO" ] || ZYNTHIAN_ZYNCODER_REPO="https://github.com/zynthian/zyncoder.git"
 [ -n "$ZYNTHIAN_WEBCONF_REPO" ] || ZYNTHIAN_WEBCONF_REPO="https://github.com/zynthian/zynthian-webconf.git"
 [ -n "$ZYNTHIAN_DATA_REPO" ] || ZYNTHIAN_DATA_REPO="https://github.com/zynthian/zynthian-data.git"
@@ -553,7 +554,9 @@ $ZYNTHIAN_RECIPE_DIR/install_mod-host.sh
 #Install MOD-UI
 $ZYNTHIAN_RECIPE_DIR/install_mod-ui.sh
 
-# Install OpenMixer: plugin-hostd, omx-clap-host, omx-plugins and omx-panel
+# Install OpenMixer as the default: plugin-hostd, omx-clap-host, omx-plugins,
+# omx-panel, plugin-qualify and the qualification sync. update_zynthian_sys.sh
+# below runs it again once the config exists.
 $ZYNTHIAN_RECIPE_DIR/install_openmixer.sh
 
 #Install MOD-SDK

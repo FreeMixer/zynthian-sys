@@ -5,7 +5,7 @@ Requires=jack2.service
 
 [Service]
 # ZYNTHIAN_MODHOST_BACKEND in zynthian_envars.sh picks what runs on port 5555:
-# jack_load (mod-host as a JACK internal client, the default) or plugin-hostd.
+# plugin-hostd (the default) or jack_load (mod-host as a JACK internal client).
 # sbin/mod-host-backend.sh documents both. jack_load leaves no process behind,
 # so the unit stays active after it exits; plugin-hostd stays as the main process.
 Type=forking
