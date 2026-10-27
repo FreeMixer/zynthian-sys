@@ -60,14 +60,15 @@ It stops MOD-UI and mod-host, writes the setting and starts MOD-UI again if it w
 
 ## MOD GUIs from omx-panel
 
-MOD-UI draws a plugin with the MOD GUI the plugin ships. For an LV2 plugin that ships none, `scripts/omx-modgui-sync.sh` makes one with `omx-panel modgui` from the plugin's descriptor, so MOD-UI shows a panel for every plugin.
+MOD-UI draws a plugin with the MOD GUI the plugin ships. For an LV2 plugin that ships none, `omx-modgui-sync` (a command of the omx-panel package) makes one with `omx-panel modgui` from the plugin's descriptor, so MOD-UI shows a panel for every plugin.
 
-- Each GUI is a bundle of its own in `/zynthian/zynthian-my-data/modgui`, which is on `LV2_PATH`. Its `manifest.ttl` holds the GUI triples and declares no plugin, so lilv adds the GUI to the installed plugin and the plugin's own bundle is never touched.
+- Each GUI is a bundle of its own in `/var/lib/omx/modgui`, the standard place; this image puts that directory on `LV2_PATH`. Its `manifest.ttl` holds the GUI triples and declares no plugin, so lilv adds the GUI to the installed plugin and the plugin's own bundle is never touched.
 - The descriptor is the plugin's declaration in omx-contract for our own plugins, else one written by plugin-hostd or plugin-qualify in `/var/lib/omx/descriptors`, else one made by `plugin-hostd-probe describe` and kept in `/var/lib/omx/modgui-sync`.
 - A bundle newer than its descriptor is left as it is. A bundle without the sync's marker file is never written or removed. A generated GUI goes away when its plugin is removed or starts shipping its own.
-- `omx-modgui-sync.service` runs it at boot and, through `/etc/apt/apt.conf.d/80omx-modgui-sync`, after each apt run. MOD-UI shows new GUIs the next time it starts.
+- A plugin that cannot get a GUI never fails the run; the summary names it.
+- `omx-modgui-sync.service` comes with omx-panel, which installs it without enabling it; this image enables it. It runs at boot and, through omx-panel's apt hook, after each apt run. MOD-UI shows new GUIs the next time it starts.
 
-The OpenMixer plugins (omx-plugins-lv2) ship their MOD GUI inside their bundles in `/usr/lib/lv2`, listed in each `manifest.ttl`. MOD-UI reads them from there like any other plugin's, and the sync leaves them alone. `tests/omx-modgui-sync-check.sh` checks the sync.
+The OpenMixer plugins (omx-plugins-lv2) ship their MOD GUI inside their bundles in `/usr/lib/lv2`, listed in each `manifest.ttl`. MOD-UI reads them from there like any other plugin's, and the sync leaves them alone. The script, its unit and its tests live in the omx-panel repository.
 
 You can learn more about the Zynthian Project in any of our sites: 
 

@@ -186,8 +186,8 @@ elif [ ${MACHINE_HW_NAME} = "aarch64" ]; then
 	arch_libdir="aarch64-linux-gnu"
 fi
 # $ZYNTHIAN_MY_DATA_DIR/plugins/lv2 holds the user's plugins (config/qualify.conf
-# lists it too). The last entry holds the MOD GUIs made by omx-modgui-sync.sh
-LV2_PATH="/usr/lib/lv2:/usr/lib/$arch_libdir/lv2:/usr/local/lib/lv2:/usr/local/lib/$arch_libdir/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_MY_DATA_DIR/plugins/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2-presets:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/modgui"
+# lists it too). The last entry holds the MOD GUIs made by omx-modgui-sync (omx-panel)
+LV2_PATH="/usr/lib/lv2:/usr/lib/$arch_libdir/lv2:/usr/local/lib/lv2:/usr/local/lib/$arch_libdir/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_MY_DATA_DIR/plugins/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2-presets:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2:/var/lib/omx/modgui"
 LV2_PATH_ESC=${LV2_PATH//\//\\\/}
 sed -i -e "s/^export LV2_PATH\=.*$/export LV2_PATH=\"$LV2_PATH_ESC\"/" $ZYNTHIAN_CONFIG_DIR/zynthian_envars.sh
 
@@ -577,10 +577,6 @@ sed -i -e "s/#ZYNTHIAN_DIR#/$ZYNTHIAN_DIR_ESC/g" /etc/systemd/system/filebrowser
 sed -i -e "s/#ZYNTHIAN_SYS_DIR#/$ZYNTHIAN_SYS_DIR_ESC/g" /etc/systemd/system/filebrowser.service
 sed -i -e "s/#ZYNTHIAN_SW_DIR#/$ZYNTHIAN_SW_DIR_ESC/g" /etc/systemd/system/filebrowser.service
 
-sed -i -e "s/#LV2_PATH#/$LV2_PATH_ESC/g" /etc/systemd/system/omx-modgui-sync.service
-sed -i -e "s/#ZYNTHIAN_CONFIG_DIR#/$ZYNTHIAN_CONFIG_DIR_ESC/g" /etc/systemd/system/omx-modgui-sync.service
-sed -i -e "s/#ZYNTHIAN_SYS_DIR#/$ZYNTHIAN_SYS_DIR_ESC/g" /etc/systemd/system/omx-modgui-sync.service
-
 # Reload Systemd scripts
 systemctl daemon-reload
 
@@ -589,7 +585,10 @@ if [ "$(systemctl is-enabled usb-gadget)" != "enabled" ]; then
 	echo "Enabling USB gadget ..."
 	systemctl enable usb-gadget
 fi
-if [ "$(systemctl is-enabled omx-modgui-sync)" != "enabled" ]; then
+# the MOD GUI sync is omx-panel's unit (installed, never enabled by the package): this image turns it on
+if ! systemctl cat omx-modgui-sync >/dev/null 2>&1; then
+	echo "The MOD GUI sync comes with omx-panel 0.4.0 or later: run scripts/recipes/install_openmixer.sh --upgrade"
+elif [ "$(systemctl is-enabled omx-modgui-sync)" != "enabled" ]; then
 	echo "Enabling the MOD GUI sync ..."
 	systemctl enable omx-modgui-sync
 fi
