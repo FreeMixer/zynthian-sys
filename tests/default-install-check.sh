@@ -7,7 +7,7 @@
 #
 # Container only: it rewrites /zynthian/config, /etc/omx and /etc/systemd.
 # Needs debian:trixie (amd64 is fine) with openmixer-release, plugin-hostd,
-# omx-clap-host, omx-plugins and plugin-qualify installed, and this tree copied
+# omx-clap-host, omx-plugins, omx-panel (0.6.0 or later) and plugin-qualify installed, and this tree copied
 # to /zynthian/zynthian-sys:
 #
 #   podman run --rm -v $PWD:/src:ro <image> bash -c \
@@ -19,7 +19,7 @@ CONFIG_DIR=/zynthian/config
 ENVARS="$CONFIG_DIR/zynthian_envars.sh"
 PHD_CONF="$CONFIG_DIR/plugin-hostd.conf"
 QUALIFY_CONF=/etc/omx/qualify.conf
-PACKAGES="openmixer-release plugin-hostd omx-clap-host omx-plugins plugin-qualify"
+PACKAGES="openmixer-release plugin-hostd omx-clap-host omx-plugins omx-panel plugin-qualify"
 PIANOTEQ_DIR=/zynthian/zynthian-sw/pianoteq/arm-64bit
 
 fails=0
@@ -54,7 +54,7 @@ state_sum() {
 	sha256sum "$ENVARS" "$PHD_CONF" "$QUALIFY_CONF" "$CONFIG_DIR/openmixer-defaults" \
 		/etc/tmpfiles.d/omx-qualified-pins.conf /var/lib/omx/qualified.pins \
 		/etc/systemd/system/mod-host.service /etc/systemd/system/plugin-qualify-sync.*.d/* 2>&1
-	for u in plugin-qualify-sync.timer plugin-qualify-sync.path; do
+	for u in plugin-qualify-sync.timer plugin-qualify-sync.path omx-modgui-sync omx-complement-sync; do
 		echo "$u $(systemctl is-enabled "$u" 2>&1)"
 	done
 }
@@ -71,6 +71,14 @@ assert_defaults() {
 
 	check "plugin-qualify-sync.timer is enabled" test "$(systemctl is-enabled plugin-qualify-sync.timer)" = enabled
 	check "plugin-qualify-sync.path is enabled" test "$(systemctl is-enabled plugin-qualify-sync.path)" = enabled
+	check "omx-modgui-sync is enabled" test "$(systemctl is-enabled omx-modgui-sync)" = enabled
+	check "omx-complement-sync is enabled" test "$(systemctl is-enabled omx-complement-sync)" = enabled
+	for u in omx-modgui-sync omx-complement-sync; do
+		check "$u runs with Zynthian's LV2_PATH" \
+			test "$(sed -n 's/^Environment=LV2_PATH=//p' /etc/systemd/system/$u.service.d/zynthian.conf)" = "$(envar "$ENVARS" LV2_PATH)"
+		check "a sync run starts $u (omx-panel's drop-in)" \
+			grep -qs "start --no-block $u.service" /usr/lib/systemd/system/plugin-qualify-sync.service.d/$u.conf
+	done
 	check "the path unit also watches Pianoteq and the user's plugins" \
 		grep -qx "PathChanged=$PIANOTEQ_DIR" /etc/systemd/system/plugin-qualify-sync.path.d/zynthian.conf
 
@@ -161,7 +169,7 @@ reset() {
 	cp "$work/qualify.conf.package" "$QUALIFY_CONF"
 	rm -rf /etc/systemd/system/plugin-qualify-sync.path.d /etc/systemd/system/plugin-qualify-sync.service.d \
 		/etc/tmpfiles.d/omx-qualified-pins.conf /var/lib/omx/qualified.pins
-	systemctl disable plugin-qualify-sync.timer plugin-qualify-sync.path >/dev/null 2>&1
+	systemctl disable plugin-qualify-sync.timer plugin-qualify-sync.path omx-modgui-sync omx-complement-sync >/dev/null 2>&1
 }
 
 echo "== an existing Zynthian: no ZYNTHIAN_PLUGIN_ENGINE, require_pins 0, the sync disabled"

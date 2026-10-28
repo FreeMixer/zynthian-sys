@@ -185,7 +185,8 @@ if [ ${MACHINE_HW_NAME} = "armv7l" ]; then
 elif [ ${MACHINE_HW_NAME} = "aarch64" ]; then
 	arch_libdir="aarch64-linux-gnu"
 fi
-# $ZYNTHIAN_MY_DATA_DIR/plugins/lv2 holds the user's plugins (config/qualify.conf lists it too)
+# $ZYNTHIAN_MY_DATA_DIR/plugins/lv2 holds the user's plugins (config/qualify.conf
+# lists it too). The MOD GUIs made by omx-modgui-sync (omx-panel) go to /usr/local/lib/lv2, the third entry
 LV2_PATH="/usr/lib/lv2:/usr/lib/$arch_libdir/lv2:/usr/local/lib/lv2:/usr/local/lib/$arch_libdir/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_MY_DATA_DIR/plugins/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2-presets:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2"
 LV2_PATH_ESC=${LV2_PATH//\//\\\/}
 sed -i -e "s/^export LV2_PATH\=.*$/export LV2_PATH=\"$LV2_PATH_ESC\"/" $ZYNTHIAN_CONFIG_DIR/zynthian_envars.sh
@@ -576,6 +577,8 @@ sed -i -e "s/#ZYNTHIAN_DIR#/$ZYNTHIAN_DIR_ESC/g" /etc/systemd/system/filebrowser
 sed -i -e "s/#ZYNTHIAN_SYS_DIR#/$ZYNTHIAN_SYS_DIR_ESC/g" /etc/systemd/system/filebrowser.service
 sed -i -e "s/#ZYNTHIAN_SW_DIR#/$ZYNTHIAN_SW_DIR_ESC/g" /etc/systemd/system/filebrowser.service
 
+sed -i -e "s/#LV2_PATH#/$LV2_PATH_ESC/g" /etc/systemd/system/omx-modgui-sync.service.d/zynthian.conf
+sed -i -e "s/#LV2_PATH#/$LV2_PATH_ESC/g" /etc/systemd/system/omx-complement-sync.service.d/zynthian.conf
 
 # Reload Systemd scripts
 systemctl daemon-reload
@@ -585,6 +588,20 @@ if [ "$(systemctl is-enabled usb-gadget)" != "enabled" ]; then
 	echo "Enabling USB gadget ..."
 	systemctl enable usb-gadget
 fi
+
+# The MOD GUI and LV2 complement syncs are omx-panel's units, installed and never
+# enabled by the package: this image turns them on. Each runs at boot and after
+# every plugin-qualify-sync (the package's drop-ins queue it).
+for unit in omx-modgui-sync omx-complement-sync; do
+	case "$(systemctl is-enabled "$unit" 2>/dev/null)" in
+		enabled) ;;
+		disabled)
+			echo "Enabling $unit ..."
+			systemctl enable "$unit"
+			;;
+		*) echo "$unit comes with omx-panel 0.6.0 or later: run scripts/recipes/install_openmixer.sh --upgrade" ;;
+	esac
+done
 
 # OpenMixer's plugin hosting, once: packages, plugin-hostd's pins, the
 # qualification sync. It restarts nothing and says what changed.

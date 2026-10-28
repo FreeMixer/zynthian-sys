@@ -7,7 +7,8 @@
 # - the OpenMixer apt repository (package openmixer-release, which carries the
 #   signing key and one apt source per Debian release);
 # - plugin-hostd, omx-clap-host (with omx-clap-scan, which the UI lists CLAP
-#   plugins with), omx-plugins and plugin-qualify;
+#   plugins with), omx-plugins, omx-panel (MOD GUIs and controller pages from
+#   each plugin's descriptor) and plugin-qualify;
 # - plugin-hostd as the engine the UI menus offer LV2 plugins through
 #   (ZYNTHIAN_PLUGIN_ENGINE), in a config made before that default;
 # - /zynthian/config/plugin-hostd.conf with the pins of the qualification sync;
@@ -21,7 +22,7 @@
 #******************************************************************************
 
 RELEASE_URL="https://www.openmixer.org/deb/openmixer-release.deb"
-PACKAGES="plugin-hostd omx-clap-host omx-plugins plugin-qualify"
+PACKAGES="plugin-hostd omx-clap-host omx-plugins omx-panel plugin-qualify"
 
 ZYNTHIAN_CONFIG_DIR=${ZYNTHIAN_CONFIG_DIR:-/zynthian/config}
 ZYNTHIAN_SYS_DIR=${ZYNTHIAN_SYS_DIR:-/zynthian/zynthian-sys}
