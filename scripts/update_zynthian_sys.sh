@@ -578,6 +578,7 @@ sed -i -e "s/#ZYNTHIAN_SYS_DIR#/$ZYNTHIAN_SYS_DIR_ESC/g" /etc/systemd/system/fil
 sed -i -e "s/#ZYNTHIAN_SW_DIR#/$ZYNTHIAN_SW_DIR_ESC/g" /etc/systemd/system/filebrowser.service
 
 sed -i -e "s/#LV2_PATH#/$LV2_PATH_ESC/g" /etc/systemd/system/omx-modgui-sync.service.d/zynthian.conf
+sed -i -e "s/#LV2_PATH#/$LV2_PATH_ESC/g" /etc/systemd/system/omx-complement-sync.service.d/zynthian.conf
 
 # Reload Systemd scripts
 systemctl daemon-reload
@@ -593,6 +594,14 @@ if ! systemctl cat omx-modgui-sync >/dev/null 2>&1; then
 elif [ "$(systemctl is-enabled omx-modgui-sync)" != "enabled" ]; then
 	echo "Enabling the MOD GUI sync ..."
 	systemctl enable omx-modgui-sync
+fi
+# the port-group complement is omx-panel's unit too (0.6.0 or later; installed, never enabled by the package): it
+# gives the plugins that lack port groups a screen per section on the touchscreen (plugin-hostd#218)
+if ! systemctl cat omx-complement-sync >/dev/null 2>&1; then
+	echo "The port-group complement comes with omx-panel 0.6.0 or later: run scripts/recipes/install_openmixer.sh --upgrade"
+elif [ "$(systemctl is-enabled omx-complement-sync)" != "enabled" ]; then
+	echo "Enabling the port-group complement ..."
+	systemctl enable omx-complement-sync
 fi
 
 # OpenMixer as the default, once: packages, plugin-hostd as mod-host and UI
