@@ -186,8 +186,8 @@ elif [ ${MACHINE_HW_NAME} = "aarch64" ]; then
 	arch_libdir="aarch64-linux-gnu"
 fi
 # $ZYNTHIAN_MY_DATA_DIR/plugins/lv2 holds the user's plugins (config/qualify.conf
-# lists it too). The last entry holds the MOD GUIs made by omx-modgui-sync (omx-panel)
-LV2_PATH="/usr/lib/lv2:/usr/lib/$arch_libdir/lv2:/usr/local/lib/lv2:/usr/local/lib/$arch_libdir/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_MY_DATA_DIR/plugins/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2-presets:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2:/var/lib/omx/modgui"
+# lists it too). The MOD GUIs made by omx-modgui-sync (omx-panel) go to /usr/local/lib/lv2, the third entry
+LV2_PATH="/usr/lib/lv2:/usr/lib/$arch_libdir/lv2:/usr/local/lib/lv2:/usr/local/lib/$arch_libdir/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_MY_DATA_DIR/plugins/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2-presets:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2"
 LV2_PATH_ESC=${LV2_PATH//\//\\\/}
 sed -i -e "s/^export LV2_PATH\=.*$/export LV2_PATH=\"$LV2_PATH_ESC\"/" $ZYNTHIAN_CONFIG_DIR/zynthian_envars.sh
 
