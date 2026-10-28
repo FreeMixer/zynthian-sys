@@ -1,0 +1,9 @@
+[Unit]
+Description=Follow the latest vangelis and the omx packages
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=ZYNTHIAN_DIR=#ZYNTHIAN_DIR#
+ExecStart=#ZYNTHIAN_SYS_DIR#/scripts/omx-track-latest.sh

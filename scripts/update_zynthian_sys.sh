@@ -580,6 +580,10 @@ sed -i -e "s/#ZYNTHIAN_SW_DIR#/$ZYNTHIAN_SW_DIR_ESC/g" /etc/systemd/system/fileb
 sed -i -e "s/#LV2_PATH#/$LV2_PATH_ESC/g" /etc/systemd/system/omx-modgui-sync.service.d/zynthian.conf
 sed -i -e "s/#LV2_PATH#/$LV2_PATH_ESC/g" /etc/systemd/system/omx-complement-sync.service.d/zynthian.conf
 
+# The daily follow of vangelis and the omx packages
+sed -i -e "s/#ZYNTHIAN_DIR#/$ZYNTHIAN_DIR_ESC/g" /etc/systemd/system/omx-track-latest.service
+sed -i -e "s/#ZYNTHIAN_SYS_DIR#/$ZYNTHIAN_SYS_DIR_ESC/g" /etc/systemd/system/omx-track-latest.service
+
 # Reload Systemd scripts
 systemctl daemon-reload
 
@@ -587,6 +591,11 @@ systemctl daemon-reload
 if [ "$(systemctl is-enabled usb-gadget)" != "enabled" ]; then
 	echo "Enabling USB gadget ..."
 	systemctl enable usb-gadget
+fi
+# the daily follow of vangelis and the channel is this repo's unit: only this script turns it on
+if [ "$(systemctl is-enabled omx-track-latest.timer)" != "enabled" ]; then
+	echo "Enabling the daily follow of vangelis ..."
+	systemctl enable --now omx-track-latest.timer
 fi
 # the MOD GUI sync is omx-panel's unit (installed, never enabled by the package): this image turns it on
 if ! systemctl cat omx-modgui-sync >/dev/null 2>&1; then
