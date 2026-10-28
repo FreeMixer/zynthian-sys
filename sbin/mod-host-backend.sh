@@ -16,15 +16,12 @@
 
 ZYNTHIAN_CONFIG_DIR=${ZYNTHIAN_CONFIG_DIR:-/zynthian/config}
 ZYNTHIAN_SYS_DIR=${ZYNTHIAN_SYS_DIR:-/zynthian/zynthian-sys}
+export ZYNTHIAN_CONFIG_DIR ZYNTHIAN_SYS_DIR
 
 PORT=${PORT:-5555}
 FEEDBACK_PORT=${FEEDBACK_PORT:-5556}
-PHD_CONF="$ZYNTHIAN_CONFIG_DIR/plugin-hostd.conf"
-PHD_CONF_DEFAULT="$ZYNTHIAN_SYS_DIR/config/plugin-hostd.conf"
-PHD_STATE=${PHD_STATE:-/run/plugin-hostd}
-PHD_LOG="$PHD_STATE/plugin-hostd.log"
-READY_TIMEOUT=${READY_TIMEOUT:-10}
-PHD_PROTOCOL=${PHD_PROTOCOL:-/usr/share/plugin-hostd/protocol.json}
+# plugin-hostd-start.sh, beside this script, reads PHD_CONF, PHD_STATE, PHD_PROTOCOL and READY_TIMEOUT
+HERE=$(dirname "$(readlink -f "$0")")
 
 JACK_LOAD="${JACKD_BIN_PATH:+$JACKD_BIN_PATH/}jack_load"
 JACK_UNLOAD="${JACKD_BIN_PATH:+$JACKD_BIN_PATH/}jack_unload"
@@ -51,10 +48,6 @@ phd_pids() {
 
 internal_loaded() {
 	"$JACK_LSP" 2>/dev/null | grep -q '^mod-host:'
-}
-
-listening() {
-	ss -Hltn "sport = :$1" 2>/dev/null | grep -q .
 }
 
 stop_phd() {
@@ -89,51 +82,10 @@ start_jack_load() {
 	"$JACK_LOAD" -i "$PORT" mod-host
 }
 
-# The line plugin-hostd declares for ready, from the protocol file its package installs
-declared_ready_line() {
-	python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["readiness"]["daemon_line"])' \
-		"$PHD_PROTOCOL" 2>/dev/null || {
-		echo "plugin-hostd declares no readiness line: $PHD_PROTOCOL is not readable" >&2
-		return 1
-	}
-}
-
 start_plugin_hostd() {
-	local pid i ready_line
 	stop_internal
-	if [ -n "$(phd_pids)" ]; then
-		echo "plugin-hostd is already running on port $PORT"
-		return 0
-	fi
-	if listening "$PORT"; then
-		echo "Port $PORT is held by another program, not starting plugin-hostd" >&2
-		return 1
-	fi
-	if [ ! -f "$PHD_CONF" ]; then
-		echo "Installing $PHD_CONF from $PHD_CONF_DEFAULT"
-		cp "$PHD_CONF_DEFAULT" "$PHD_CONF" || return 1
-	fi
-	ready_line=$(declared_ready_line) || return 1
-	mkdir -p "$PHD_STATE"
-	echo "Starting plugin-hostd on ports $PORT and $FEEDBACK_PORT with $PHD_CONF"
-	: >"$PHD_LOG"
-	plugin-hostd -n -p "$PORT" -f "$FEEDBACK_PORT" -c "$PHD_CONF" >"$PHD_LOG" 2>&1 &
-	pid=$!
-	# Ready is the line the daemon declares, printed once both its ports accept
-	for ((i = 0; i < READY_TIMEOUT * 10; i++)); do
-		if grep -qxF "$ready_line" "$PHD_LOG"; then
-			return 0
-		fi
-		if ! kill -0 "$pid" 2>/dev/null; then
-			wait "$pid"
-			echo "plugin-hostd exited with code $? before it was ready, see $PHD_LOG" >&2
-			return 1
-		fi
-		sleep 0.1
-	done
-	echo "plugin-hostd did not print '$ready_line' in $READY_TIMEOUT s, see $PHD_LOG" >&2
-	kill -TERM "$pid" 2>/dev/null
-	return 1
+	# Started and waited for by the script the UI engine starts its own daemon with
+	"$HERE/plugin-hostd-start.sh" "$PORT" "$FEEDBACK_PORT" >/dev/null
 }
 
 case "$1" in
