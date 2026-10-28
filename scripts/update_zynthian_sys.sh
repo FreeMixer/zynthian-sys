@@ -595,14 +595,6 @@ elif [ "$(systemctl is-enabled omx-modgui-sync)" != "enabled" ]; then
 	echo "Enabling the MOD GUI sync ..."
 	systemctl enable omx-modgui-sync
 fi
-# the port-group complement is omx-panel's unit too (0.6.0 or later; installed, never enabled by the package): it
-# gives the plugins that lack port groups a screen per section on the touchscreen (plugin-hostd#218)
-if ! systemctl cat omx-complement-sync >/dev/null 2>&1; then
-	echo "The port-group complement comes with omx-panel 0.6.0 or later: run scripts/recipes/install_openmixer.sh --upgrade"
-elif [ "$(systemctl is-enabled omx-complement-sync)" != "enabled" ]; then
-	echo "Enabling the port-group complement ..."
-	systemctl enable omx-complement-sync
-fi
 
 # OpenMixer as the default, once: packages, plugin-hostd as mod-host and UI
 # engine, the qualification sync. It restarts nothing and says what changed.
