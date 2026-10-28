@@ -7,6 +7,8 @@
 # - the OpenMixer apt repository (package openmixer-release, which carries the
 #   signing key and one apt source per Debian release);
 # - plugin-hostd, omx-clap-host and plugin-qualify;
+# - plugin-hostd as the engine the UI menus offer LV2 plugins through
+#   (ZYNTHIAN_PLUGIN_ENGINE), in a config made before that default;
 # - /zynthian/config/plugin-hostd.conf with the pins of the qualification sync;
 # - the qualification sync (plugin-qualify-sync.timer and .path) with
 #   Zynthian's plugin directories in /etc/omx/qualify.conf.
@@ -23,6 +25,7 @@ PACKAGES="plugin-hostd omx-clap-host plugin-qualify"
 ZYNTHIAN_CONFIG_DIR=${ZYNTHIAN_CONFIG_DIR:-/zynthian/config}
 ZYNTHIAN_SYS_DIR=${ZYNTHIAN_SYS_DIR:-/zynthian/zynthian-sys}
 DONE_FILE="$ZYNTHIAN_CONFIG_DIR/openmixer-defaults"
+ENVARS="$ZYNTHIAN_CONFIG_DIR/zynthian_envars.sh"
 PHD_CONF="$ZYNTHIAN_CONFIG_DIR/plugin-hostd.conf"
 QUALIFY_CONF=${QUALIFY_CONF:-/etc/omx/qualify.conf}
 SYSTEMD_UNIT_DIR=${SYSTEMD_UNIT_DIR:-/usr/lib/systemd/system}
@@ -63,6 +66,18 @@ version_of() {
 
 is_done() { grep -qx "$1" "$DONE_FILE" 2>/dev/null; }
 mark_done() { is_done "$1" || echo "$1" >>"$DONE_FILE"; }
+
+# The value of an exported variable in zynthian_envars.sh, quotes removed
+envar_get() {
+	sed -n "s/^export $1=[\"']\{0,1\}\([^\"']*\).*/\1/p" "$ENVARS" | tail -n 1
+}
+envar_set() {
+	if grep -q "^export $1=" "$ENVARS"; then
+		sed -i "s/^export $1=.*/export $1=\"$2\"/" "$ENVARS"
+	else
+		echo "export $1=\"$2\"" >>"$ENVARS"
+	fi
+}
 
 # The value of a key in a "key value" file, the last line winning
 conf_get() {
@@ -135,6 +150,19 @@ fi
 #------------------------------------------------------------------------------
 
 mkdir -p "$ZYNTHIAN_CONFIG_DIR"
+
+# ZYNTHIAN_PLUGIN_ENGINE, for a config made before zynthian_envars.sh carried
+# it; one that names an engine is left as it is. Without the file (a new
+# image) update_zynthian_sys.sh copies the defaults and runs this again.
+engine_changed=0
+if ! is_done envars && [ -f "$ENVARS" ] && command -v plugin-hostd >/dev/null; then
+	if [ -z "$(envar_get ZYNTHIAN_PLUGIN_ENGINE)" ]; then
+		envar_set ZYNTHIAN_PLUGIN_ENGINE plugin-hostd
+		change "ZYNTHIAN_PLUGIN_ENGINE unset -> plugin-hostd in $ENVARS"
+		engine_changed=1
+	fi
+	mark_done envars
+fi
 
 # plugin-hostd.conf: pins required, from the sync's pin file
 phd_changed=0
@@ -222,5 +250,8 @@ fi
 for n in "${notes[@]}"; do echo "  note: $n"; done
 if [ "$phd_changed" = 1 ]; then
 	echo "  plugin-hostd was not restarted: the change applies at its next start"
+fi
+if [ "$engine_changed" = 1 ]; then
+	echo "  zynthian was not restarted: the menus offer plugin-hostd from its next start"
 fi
 exit "$failed"

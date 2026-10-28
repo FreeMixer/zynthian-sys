@@ -1,6 +1,6 @@
 #!/bin/bash
 #******************************************************************************
-# Check what install_openmixer.sh sets up: packages, repository, the
+# Check what install_openmixer.sh sets up: packages, repository, envars, the
 # qualification sync's units, plugin-hostd's pin keys and LV2_PATH, after the
 # update path of an existing Zynthian and after a new image's setup, and that
 # running the update again changes nothing.
@@ -101,6 +101,15 @@ assert_defaults() {
 	systemd-tmpfiles --create /etc/tmpfiles.d/omx-qualified-pins.conf 2>/dev/null
 	check "a boot puts a deleted pin file back (tmpfiles.d)" test -f "$(conf "$PHD_CONF" pin_file)"
 
+	# envars, in the config and in the defaults a new config is made from
+	check "config: ZYNTHIAN_PLUGIN_ENGINE=plugin-hostd" test "$(envar "$ENVARS" ZYNTHIAN_PLUGIN_ENGINE)" = plugin-hostd
+	check "defaults: ZYNTHIAN_PLUGIN_ENGINE=plugin-hostd" \
+		test "$(envar "$SYS_DIR/scripts/zynthian_envars.sh" ZYNTHIAN_PLUGIN_ENGINE)" = plugin-hostd
+	check "defaults: ZYNTHIAN_PLUGIN_HOSTD_PORT is declared, next to ZYNTHIAN_MODHOST_BACKEND" \
+		test "$(envar "$SYS_DIR/scripts/zynthian_envars.sh" ZYNTHIAN_PLUGIN_HOSTD_PORT)" = 5570
+	check "defaults: MOD-UI keeps jack_load" \
+		test "$(envar "$SYS_DIR/scripts/zynthian_envars.sh" ZYNTHIAN_MODHOST_BACKEND)" = jack_load
+
 	# LV2_PATH: what MOD-UI's plugin-hostd searches, and the sync searches it in the same order
 	local lv2 unit
 	lv2=$(envar "$ENVARS" LV2_PATH | dirs_of)
@@ -155,21 +164,26 @@ reset() {
 	systemctl disable plugin-qualify-sync.timer plugin-qualify-sync.path >/dev/null 2>&1
 }
 
-echo "== an existing Zynthian: require_pins 0, the sync disabled"
+echo "== an existing Zynthian: no ZYNTHIAN_PLUGIN_ENGINE, require_pins 0, the sync disabled"
 reset
-cp "$SYS_DIR/scripts/zynthian_envars.sh" "$ENVARS"
+# The envars of a config made before this change
+sed '/ZYNTHIAN_PLUGIN_ENGINE/d' "$SYS_DIR/scripts/zynthian_envars.sh" >"$ENVARS"
+check "before: ZYNTHIAN_PLUGIN_ENGINE unset" test -z "$(envar "$ENVARS" ZYNTHIAN_PLUGIN_ENGINE)"
 # The plugin-hostd.conf the mod-host backend copied before this change
 printf 'mod_host /usr/local/bin/mod-host\nclap_host omx-clap-host\nlv2_worker auto\nrequire_pins 0\nstate_root /run/plugin-hostd\ndescriptor_dir /var/lib/omx/descriptors\n' >"$PHD_CONF"
 echo "-- update"
 update
 check "the update says plugin-hostd was not restarted" grep -q 'plugin-hostd was not restarted' "$work/update.log"
+check "the update says the menus change at zynthian's next start" grep -q 'menus offer plugin-hostd from its next start' "$work/update.log"
 assert_defaults
 assert_idempotent
 echo "-- a choice made after the update stays"
 sed -i 's/^require_pins .*/require_pins 0/' "$PHD_CONF"
+sed -i 's/^export ZYNTHIAN_PLUGIN_ENGINE=.*/export ZYNTHIAN_PLUGIN_ENGINE="jalv"/' "$ENVARS"
 systemctl disable plugin-qualify-sync.timer >/dev/null 2>&1
 update
 check "require_pins 0 set by hand is kept" test "$(conf "$PHD_CONF" require_pins)" = 0
+check "ZYNTHIAN_PLUGIN_ENGINE=jalv set by hand is kept" test "$(envar "$ENVARS" ZYNTHIAN_PLUGIN_ENGINE)" = jalv
 check "the timer disabled by hand stays disabled" test "$(systemctl is-enabled plugin-qualify-sync.timer)" = disabled
 echo "-- a package removed by hand stays removed"
 apt-get -qq remove -y plugin-qualify >/dev/null 2>&1

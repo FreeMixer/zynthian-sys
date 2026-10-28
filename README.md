@@ -36,6 +36,14 @@ MOD-UI talks to a mod-host on port 5555. `ZYNTHIAN_MODHOST_BACKEND` in `zynthian
 
 It stops MOD-UI and mod-host, writes the setting and starts MOD-UI again if it was running, saying each step. Without an argument it prints the setting and what runs. plugin-hostd reads `/zynthian/config/plugin-hostd.conf`, copied from `config/plugin-hostd.conf` on first use; that file explains each setting. `tests/modhost-backend-check.sh` checks the plugin-hostd backend end to end.
 
+## plugin-hostd as the UI's plugin engine
+
+`ZYNTHIAN_PLUGIN_ENGINE` in `zynthian_envars.sh` picks the engine the UI's plugin menus offer LV2 instruments and effects through: `plugin-hostd` (the default) or `jalv`. The UI's plugin-hostd engine runs its own daemon on `ZYNTHIAN_PLUGIN_HOSTD_PORT` (5570), apart from MOD-UI's on 5555, started with `sbin/plugin-hostd-start.sh`. A config made before this default gets the variable once from `install_openmixer.sh`; one that already names an engine is left as it is. To go back, as root:
+
+```
+sed -i 's/^export ZYNTHIAN_PLUGIN_ENGINE=.*/export ZYNTHIAN_PLUGIN_ENGINE="jalv"/' /zynthian/config/zynthian_envars.sh
+```
+
 ## Plugin qualification
 
 `plugin-qualify` measures each installed plugin on this device, once per version of its files: whether it loads, whether it is real-time safe, its latency and its cost. `scripts/recipes/install_openmixer.sh` (which the setup scripts and `update_zynthian_sys.sh` run) installs it and sets up:
