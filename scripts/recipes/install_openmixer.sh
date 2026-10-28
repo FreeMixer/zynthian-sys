@@ -6,7 +6,8 @@
 #
 # - the OpenMixer apt repository (package openmixer-release, which carries the
 #   signing key and one apt source per Debian release);
-# - plugin-hostd, omx-clap-host and plugin-qualify;
+# - plugin-hostd, omx-clap-host (with omx-clap-scan, which the UI lists CLAP
+#   plugins with), omx-plugins and plugin-qualify;
 # - plugin-hostd as the engine the UI menus offer LV2 plugins through
 #   (ZYNTHIAN_PLUGIN_ENGINE), in a config made before that default;
 # - /zynthian/config/plugin-hostd.conf with the pins of the qualification sync;
@@ -20,7 +21,7 @@
 #******************************************************************************
 
 RELEASE_URL="https://www.openmixer.org/deb/openmixer-release.deb"
-PACKAGES="plugin-hostd omx-clap-host plugin-qualify"
+PACKAGES="plugin-hostd omx-clap-host omx-plugins plugin-qualify"
 
 ZYNTHIAN_CONFIG_DIR=${ZYNTHIAN_CONFIG_DIR:-/zynthian/config}
 ZYNTHIAN_SYS_DIR=${ZYNTHIAN_SYS_DIR:-/zynthian/zynthian-sys}
@@ -143,6 +144,10 @@ if [ "$failed" = 0 ] && { [ "$upgrade" = 1 ] || [ -n "$missing" ]; }; then
 		note "the OpenMixer packages did not install: the next run tries again"
 		failed=1
 	fi
+fi
+
+if is_installed omx-clap-host && ! command -v omx-clap-scan >/dev/null; then
+	note "omx-clap-scan is missing from omx-clap-host $(version_of omx-clap-host): the UI lists no CLAP plugins"
 fi
 
 #------------------------------------------------------------------------------

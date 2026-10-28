@@ -8,7 +8,7 @@ This repository contains system scripts & configuration files.
 
 ## OpenMixer repository
 
-The OpenMixer apt repository brings plugin-hostd, a drop-in for mod-host that runs each plugin in a worker process of its own, and omx-clap-host, the program those workers run CLAP plugins and plugin-hostd's LV2 adapter in. Installing them changes nothing that runs: mod-host, MOD-UI and the UI's engines stay as they are until a setting picks plugin-hostd.
+The OpenMixer apt repository brings plugin-hostd, a drop-in for mod-host that runs each plugin in a worker process of its own, and omx-clap-host, the program those workers run CLAP plugins and plugin-hostd's LV2 adapter in. omx-plugins adds OpenMixer's effects, as CLAP and LV2. Installing them changes nothing that runs: mod-host, MOD-UI and the UI's engines stay as they are until a setting picks plugin-hostd.
 
 The repository comes from the `openmixer-release` package, which installs the signing key in `/usr/share/keyrings` and links the apt source for the running Debian release (bookworm or trixie) in `/etc/apt/sources.list.d/openmixer.sources`. Packages are built for arm64 and amd64.
 

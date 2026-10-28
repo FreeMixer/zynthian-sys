@@ -7,8 +7,8 @@
 #
 # Container only: it rewrites /zynthian/config, /etc/omx and /etc/systemd.
 # Needs debian:trixie (amd64 is fine) with openmixer-release, plugin-hostd,
-# omx-clap-host and plugin-qualify installed, omx-plugins for the one CLAP the
-# image hook qualifies, and this tree copied to /zynthian/zynthian-sys:
+# omx-clap-host, omx-plugins and plugin-qualify installed, and this tree copied
+# to /zynthian/zynthian-sys:
 #
 #   podman run --rm -v $PWD:/src:ro <image> bash -c \
 #     'cp -a /src /zynthian/zynthian-sys && /zynthian/zynthian-sys/tests/default-install-check.sh'
@@ -19,8 +19,7 @@ CONFIG_DIR=/zynthian/config
 ENVARS="$CONFIG_DIR/zynthian_envars.sh"
 PHD_CONF="$CONFIG_DIR/plugin-hostd.conf"
 QUALIFY_CONF=/etc/omx/qualify.conf
-PACKAGES="openmixer-release plugin-hostd omx-clap-host plugin-qualify"
-FIXTURE_PACKAGES="omx-plugins"
+PACKAGES="openmixer-release plugin-hostd omx-clap-host omx-plugins plugin-qualify"
 PIANOTEQ_DIR=/zynthian/zynthian-sw/pianoteq/arm-64bit
 
 fails=0
@@ -33,7 +32,7 @@ check() { local what=$1; shift; if "$@"; then ok "$what"; else bad "$what"; fi; 
 	{ echo "container only: it rewrites /zynthian/config and /etc"; exit 2; }
 [ "$(id -u)" = 0 ] || { echo "run it as root"; exit 2; }
 [ -x "$SYS_DIR/scripts/update_zynthian_sys.sh" ] || { echo "copy this tree to $SYS_DIR"; exit 2; }
-for p in $PACKAGES $FIXTURE_PACKAGES; do
+for p in $PACKAGES; do
 	dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q "ok installed" || { echo "missing package: $p"; exit 2; }
 done
 
@@ -66,6 +65,7 @@ assert_defaults() {
 	for p in $PACKAGES; do
 		check "package $p is installed" dpkg-query -W "$p"
 	done
+	check "omx-clap-scan is installed (omx-clap-host)" test -x "$(command -v omx-clap-scan)"
 	check "an apt source names the OpenMixer repository" \
 		grep -Rqs 'openmixer.org/deb' /etc/apt/sources.list.d/
 
@@ -196,6 +196,15 @@ recipe() {
 		>"$work/recipe.log" 2>&1
 	sed -n '/^OpenMixer defaults/,$p' "$work/recipe.log" | sed 's/^/   | /'
 }
+
+echo "== a package this version adds is installed on its first run"
+reset
+cp "$SYS_DIR/scripts/zynthian_envars.sh" "$ENVARS"
+recipe
+apt-get -qq remove -y omx-plugins >/dev/null 2>&1
+sed -i '/^package omx-plugins$/d' "$CONFIG_DIR/openmixer-defaults"
+recipe
+check "omx-plugins, new to an install that had the others, is installed" grep -q '^  installed omx-plugins ' "$work/recipe.log"
 
 echo "== a plugin-qualify with no sync yet, then one with it"
 reset
