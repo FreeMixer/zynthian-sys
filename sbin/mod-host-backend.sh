@@ -15,13 +15,12 @@
 
 ZYNTHIAN_CONFIG_DIR=${ZYNTHIAN_CONFIG_DIR:-/zynthian/config}
 ZYNTHIAN_SYS_DIR=${ZYNTHIAN_SYS_DIR:-/zynthian/zynthian-sys}
+export ZYNTHIAN_CONFIG_DIR ZYNTHIAN_SYS_DIR
 
-PORT=5555
-FEEDBACK_PORT=5556
-PHD_CONF="$ZYNTHIAN_CONFIG_DIR/plugin-hostd.conf"
-PHD_CONF_DEFAULT="$ZYNTHIAN_SYS_DIR/config/plugin-hostd.conf"
-PHD_STATE=/run/plugin-hostd
-READY_TIMEOUT=10
+PORT=${PORT:-5555}
+FEEDBACK_PORT=${FEEDBACK_PORT:-5556}
+# plugin-hostd-start.sh, beside this script, reads PHD_CONF, PHD_STATE, PHD_PROTOCOL and READY_TIMEOUT
+HERE=$(dirname "$(readlink -f "$0")")
 
 JACK_LOAD="${JACKD_BIN_PATH:+$JACKD_BIN_PATH/}jack_load"
 JACK_UNLOAD="${JACKD_BIN_PATH:+$JACKD_BIN_PATH/}jack_unload"
@@ -43,10 +42,6 @@ phd_pids() {
 
 internal_loaded() {
 	"$JACK_LSP" 2>/dev/null | grep -q '^mod-host:'
-}
-
-listening() {
-	ss -Hltn "sport = :$1" 2>/dev/null | grep -q .
 }
 
 stop_phd() {
@@ -82,39 +77,9 @@ start_jack_load() {
 }
 
 start_plugin_hostd() {
-	local pid i
 	stop_internal
-	if [ -n "$(phd_pids)" ]; then
-		echo "plugin-hostd is already running on port $PORT"
-		return 0
-	fi
-	if listening "$PORT"; then
-		echo "Port $PORT is held by another program, not starting plugin-hostd" >&2
-		return 1
-	fi
-	if [ ! -f "$PHD_CONF" ]; then
-		echo "Installing $PHD_CONF from $PHD_CONF_DEFAULT"
-		cp "$PHD_CONF_DEFAULT" "$PHD_CONF" || return 1
-	fi
-	mkdir -p "$PHD_STATE"
-	echo "Starting plugin-hostd on ports $PORT and $FEEDBACK_PORT with $PHD_CONF"
-	plugin-hostd -n -p "$PORT" -f "$FEEDBACK_PORT" -c "$PHD_CONF" &
-	pid=$!
-	# Ready once both ports accept, as plugin-hostd itself defines it
-	for ((i = 0; i < READY_TIMEOUT * 10; i++)); do
-		if ! kill -0 "$pid" 2>/dev/null; then
-			wait "$pid"
-			echo "plugin-hostd exited with code $? before it was ready" >&2
-			return 1
-		fi
-		if listening "$PORT" && listening "$FEEDBACK_PORT"; then
-			return 0
-		fi
-		sleep 0.1
-	done
-	echo "plugin-hostd was not ready in $READY_TIMEOUT s" >&2
-	kill -TERM "$pid" 2>/dev/null
-	return 1
+	# Started and waited for by the script the UI engine starts its own daemon with
+	"$HERE/plugin-hostd-start.sh" "$PORT" "$FEEDBACK_PORT" >/dev/null
 }
 
 case "$1" in

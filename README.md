@@ -27,7 +27,7 @@ MOD-UI talks to a mod-host on port 5555. `ZYNTHIAN_MODHOST_BACKEND` in `zynthian
 - `jack_load` (the default): mod-host loaded into JACK as an internal client, as before.
 - `plugin-hostd`: plugin-hostd on ports 5555 and 5556, each plugin in a worker process of its own, so a plugin that crashes takes only its own worker down. It runs LV2 and CLAP plugins.
 
-`mod-host.service` runs `sbin/mod-host-backend.sh`, which honours the setting, removes the other backend before it starts and on stop removes whichever one runs. To switch, as root:
+`mod-host.service` runs `sbin/mod-host-backend.sh`, which honours the setting, removes the other backend before it starts and on stop removes whichever one runs. It starts plugin-hostd with `sbin/plugin-hostd-start.sh <port> [<feedback port>]`, the one place a plugin-hostd is started on this image: a second daemon on another port (the UI engine of the next change) is started with it too. The script leaves a daemon already running on the port as it is, and otherwise returns once the daemon prints the line it declares for ready in `/usr/share/plugin-hostd/protocol.json`. To switch, as root:
 
 ```
 /zynthian/zynthian-sys/sbin/set_modhost_backend.sh plugin-hostd
