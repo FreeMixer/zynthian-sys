@@ -1,3 +1,0 @@
-// After packages are installed or removed, refresh the generated MOD GUIs
-// (scripts/omx-modgui-sync.sh) in the background. Nothing happens in a chroot.
-DPkg::Post-Invoke { "systemctl --no-block start omx-modgui-sync.service >/dev/null 2>&1 || true"; };
