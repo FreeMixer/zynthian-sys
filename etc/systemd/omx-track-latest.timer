@@ -1,0 +1,9 @@
+[Unit]
+Description=Follow the latest vangelis and the omx packages, daily
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
