@@ -18,7 +18,7 @@ The system setup scripts install `openmixer-release` with the other repositories
 $ZYNTHIAN_RECIPE_DIR/install_openmixer.sh
 ```
 
-It adds the repository if missing and installs or upgrades the packages, so running it again is safe. `scripts/update_system_image.sh` runs it too, so an updated image carries the newest versions.
+It adds the repository if missing and installs the missing packages, so running it again is safe; `--upgrade` also upgrades them. `scripts/update_system_image.sh` runs it with `--upgrade`, so an updated image carries the newest versions.
 
 ## plugin-hostd as the mod-host of MOD-UI
 
@@ -35,6 +35,25 @@ MOD-UI talks to a mod-host on port 5555. `ZYNTHIAN_MODHOST_BACKEND` in `zynthian
 ```
 
 It stops MOD-UI and mod-host, writes the setting and starts MOD-UI again if it was running, saying each step. Without an argument it prints the setting and what runs. plugin-hostd reads `/zynthian/config/plugin-hostd.conf`, copied from `config/plugin-hostd.conf` on first use; that file explains each setting. `tests/modhost-backend-check.sh` checks the plugin-hostd backend end to end.
+
+## Plugin qualification
+
+`plugin-qualify` measures each installed plugin on this device, once per version of its files: whether it loads, whether it is real-time safe, its latency and its cost. `scripts/recipes/install_openmixer.sh` (which the setup scripts and `update_zynthian_sys.sh` run) installs it and sets up:
+
+- the qualification sync: `plugin-qualify-sync.timer` runs it two minutes after every boot at the lowest CPU and disk priority, and `plugin-qualify-sync.path` when a plugin directory changes. A plugin whose files are unchanged is skipped, so only the first boot after install (or after new plugins) takes long. `/etc/omx/qualify.conf` lists Zynthian's plugin directories (`config/qualify.conf`);
+- `/zynthian/config/plugin-hostd.conf` with `require_pins 1`, `pin_mode first-use` and `pin_file /var/lib/omx/qualified.pins`: in plugin-hostd, a plugin the sync qualified in-process may share a worker and chain, one it refused is not loaded, and one it has not reached yet still loads, in a worker of its own. jalv and jack_load's mod-host are not affected;
+- `$ZYNTHIAN_MY_DATA_DIR/plugins/lv2` on `LV2_PATH`, for the user's own plugins.
+
+Each step is done once and listed in `/zynthian/config/openmixer-defaults`, so a setting changed by hand afterwards stays, and a package removed by hand is not installed again. It starts and restarts nothing; its report says what changed. `tests/default-install-check.sh` checks all of it in a container.
+
+To turn it off, as root:
+
+```
+systemctl disable --now plugin-qualify-sync.timer plugin-qualify-sync.path
+sed -i 's/^require_pins .*/require_pins 0/' /zynthian/config/plugin-hostd.conf
+```
+
+An image builder can ship the image already qualified: after the setup script, run `scripts/omx_prequalify_image.sh` on the assembled system. It runs the sync once and writes the pin file, records and descriptors where the services read them; it packages nothing. It must run natively on arm64 (a Raspberry Pi): the results are keyed by the hashes of the plugin files and measured on the CPU, so it refuses to run elsewhere or under emulation. Without it, the first boot does the same work in the background.
 
 You can learn more about the Zynthian Project in any of our sites: 
 

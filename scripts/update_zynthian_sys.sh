@@ -185,7 +185,8 @@ if [ ${MACHINE_HW_NAME} = "armv7l" ]; then
 elif [ ${MACHINE_HW_NAME} = "aarch64" ]; then
 	arch_libdir="aarch64-linux-gnu"
 fi
-LV2_PATH="/usr/lib/lv2:/usr/lib/$arch_libdir/lv2:/usr/local/lib/lv2:/usr/local/lib/$arch_libdir/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2-presets:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2"
+# $ZYNTHIAN_MY_DATA_DIR/plugins/lv2 holds the user's plugins (config/qualify.conf lists it too)
+LV2_PATH="/usr/lib/lv2:/usr/lib/$arch_libdir/lv2:/usr/local/lib/lv2:/usr/local/lib/$arch_libdir/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2:$ZYNTHIAN_MY_DATA_DIR/plugins/lv2:$ZYNTHIAN_PLUGINS_DIR/lv2-presets:$ZYNTHIAN_DATA_DIR/presets/lv2:$ZYNTHIAN_MY_DATA_DIR/presets/lv2"
 LV2_PATH_ESC=${LV2_PATH//\//\\\/}
 sed -i -e "s/^export LV2_PATH\=.*$/export LV2_PATH=\"$LV2_PATH_ESC\"/" $ZYNTHIAN_CONFIG_DIR/zynthian_envars.sh
 
@@ -392,6 +393,7 @@ cp -a $ZYNTHIAN_SYS_DIR/scripts/reset_zynthian_repos.sh /usr/local/sbin
 # Copy "etc" config files
 if [ -z "$NO_ZYNTHIAN_UPDATE" ]; then
 	#cp -a $ZYNTHIAN_SYS_DIR/etc/apt/sources.list.d/* /etc/apt/sources.list.d
+	cp -a $ZYNTHIAN_SYS_DIR/etc/apt/apt.conf.d/* /etc/apt/apt.conf.d
 	cp -a $ZYNTHIAN_SYS_DIR/etc/modules /etc
 	cp -a $ZYNTHIAN_SYS_DIR/etc/inittab /etc
 	cp -an $ZYNTHIAN_SYS_DIR/etc/dbus-1/* /etc/dbus-1
@@ -583,6 +585,10 @@ if [ "$(systemctl is-enabled usb-gadget)" != "enabled" ]; then
 	echo "Enabling USB gadget ..."
 	systemctl enable usb-gadget
 fi
+
+# OpenMixer's plugin hosting, once: packages, plugin-hostd's pins, the
+# qualification sync. It restarts nothing and says what changed.
+$ZYNTHIAN_RECIPE_DIR/install_openmixer.sh
 
 # Enable the pwm fan service if an EPDF hat is detected
 if [ "$ZYNTHIAN_EPDF_HAT" == "1" ]; then
