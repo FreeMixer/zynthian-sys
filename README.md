@@ -8,7 +8,7 @@ This repository contains system scripts & configuration files.
 
 ## OpenMixer repository
 
-This fork adds the OpenMixer apt repository. It brings plugin-hostd (a crash-safe drop-in for mod-host), omx-clap-host (CLAP and LV2 plugins driven like mod-host), omx-plugins (OpenMixer effects as CLAP and LV2) and omx-panel (panels and MOD GUIs generated from what each plugin declares).
+This fork adds the OpenMixer apt repository. It brings plugin-hostd (it answers mod-host's protocol and runs plugins in worker processes it restarts), omx-clap-host (CLAP and LV2 plugins driven like mod-host), omx-plugins (OpenMixer effects as CLAP and LV2) and omx-panel (panels and MOD GUIs generated from what each plugin declares).
 
 The repository comes from the `openmixer-release` package, which installs the signing key in `/usr/share/keyrings` and links the apt source for the running Debian release (bookworm or trixie) in `/etc/apt/sources.list.d/openmixer.sources`. Packages are built for arm64 and amd64.
 
@@ -22,7 +22,7 @@ It adds the repository if missing and installs the missing packages, so running 
 
 ## OpenMixer in this Zynthian
 
-OpenMixer is part of the default install. A new image built from this fork, and an existing Zynthian on its next `update_zynthian_sys.sh` (or `update_system_image.sh`), end up with:
+On this fork OpenMixer is part of the default install; in the [series offered upstream](https://github.com/FreeMixer/plugin-hostd/blob/main/docs/zynthian/upstream-series.md) each part stays off until a user switches it on. No file that configures JACK changes: Zynthian stays on jackd. What is proven and what is still open: [plugin-hostd's Zynthian status](https://github.com/FreeMixer/plugin-hostd/blob/main/docs/zynthian/status.md). A new image built from this fork, and an existing Zynthian on its next `update_zynthian_sys.sh` (or `update_system_image.sh`), end up with:
 
 - the OpenMixer repository and plugin-hostd, omx-clap-host (with omx-clap-scan), omx-plugins, omx-panel and plugin-qualify;
 - plugin-hostd as the mod-host of MOD-UI (`ZYNTHIAN_MODHOST_BACKEND=plugin-hostd`) and as the engine the UI menus offer LV2 plugins through (`ZYNTHIAN_PLUGIN_ENGINE=plugin-hostd`);
