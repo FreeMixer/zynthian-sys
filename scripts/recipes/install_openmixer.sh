@@ -20,7 +20,6 @@
 # is started, stopped or restarted: the last lines say what applies when.
 #******************************************************************************
 
-RELEASE_URL="https://www.openmixer.org/deb/openmixer-release.deb"
 PACKAGES="plugin-hostd omx-clap-host omx-plugins omx-panel plugin-qualify"
 
 ZYNTHIAN_CONFIG_DIR=${ZYNTHIAN_CONFIG_DIR:-/zynthian/config}
@@ -98,7 +97,9 @@ if ! is_installed openmixer-release; then
 	echo "Adding the OpenMixer repository ..."
 	tmpdir=$(mktemp -d)
 	trap 'rm -rf "$tmpdir"' EXIT
-	if wget -q -O "$tmpdir/openmixer-release.deb" "$RELEASE_URL" &&
+	# the package the channel's signed index lists, checked against the archive
+	# key pinned in this checkout: apt does not check a local .deb
+	if "$ZYNTHIAN_SYS_DIR/scripts/omx-fetch-release.sh" "$tmpdir/openmixer-release.deb" &&
 		apt-get "${APT_OPTS[@]}" install "$tmpdir/openmixer-release.deb"; then
 		change "added the OpenMixer repository (openmixer-release)"
 	else
