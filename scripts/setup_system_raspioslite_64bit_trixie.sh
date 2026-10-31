@@ -97,10 +97,7 @@ rm -f kxstudio-repos_11.1.0_all.deb
 #wget -O - https://deb.zynthian.org/deb-zynthian-org.gpg > /etc/apt/trusted.gpg.d/deb-zynthian-org.gpg
 #echo "deb https://deb.zynthian.org/zynthian-oram bookworm-oram main" > "/etc/apt/sources.list.d/zynthian.list"
 
-# OpenMixer => the package brings the signing key and the apt source
-wget -q https://www.openmixer.org/deb/openmixer-release.deb
-apt-get -y install ./openmixer-release.deb
-rm -f openmixer-release.deb
+# OpenMixer: added below, once zynthian-sys (which pins its archive key) is cloned
 
 # Sfizz => Repo version segfaults!!
 #sfizz_url_base="https://download.opensuse.org/repositories/home:/sfztools:/sfizz/Raspbian_12"
@@ -193,6 +190,15 @@ mkdir "$ZYNTHIAN_SW_DIR"
 # Zynthian System Scripts and Config files
 cd "$ZYNTHIAN_DIR"
 git clone -b "${ZYNTHIAN_SYS_BRANCH}" "${ZYNTHIAN_SYS_REPO}"
+
+# OpenMixer => the package brings the signing key and the apt source. It is
+# fetched from the channel's signed index and checked against the archive key
+# pinned in zynthian-sys: apt does not check the signature of a local .deb.
+apt-get -y install gnupg curl
+"$ZYNTHIAN_DIR/zynthian-sys/scripts/omx-fetch-release.sh" /tmp/openmixer-release.deb
+apt-get -y install /tmp/openmixer-release.deb
+rm -f /tmp/openmixer-release.deb
+apt-get -y update
 
 # Config "git pull" strategy globally
 # QUESTION: is this needed at all?

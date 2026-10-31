@@ -20,6 +20,22 @@ $ZYNTHIAN_RECIPE_DIR/install_openmixer.sh
 
 It adds the repository if missing and installs the missing packages, so running it again is safe; `--upgrade` also upgrades them. `scripts/update_system_image.sh` runs it with `--upgrade`, so an updated image carries the newest versions.
 
+The first `openmixer-release` is fetched by `scripts/omx-fetch-release.sh`, which installs nothing unless the package is the newest one in the channel's index for this Debian release, and that index is signed by a key in `keys/openmixer-archive-keyring.asc`. apt does not check the signature of a local `.deb`, so this check stands in for one until the package has installed the key.
+
+## Following the fork
+
+`omx-track-latest.timer` runs `scripts/omx-track-latest.sh` every day at 04:30. It upgrades the OpenMixer packages through apt, and moves zynthian-ui and zynthian-sys to the newest `omx-track/<YYYYMMDDXX>` tag on the fork. It never takes the tip of a branch. A tag is taken only if it meets all of these:
+
+- it is signed by a key in `keys/track-signing-keys.asc` (read from the checkout the device runs);
+- it names the repository it is for;
+- it fast-forwards what the device runs.
+
+Anything else leaves the device where it is, with a line in the journal saying why (`journalctl -u omx-track-latest`). That covers a commit pushed without a tag, a tag signed by another key and a device with no key file. The key file changes only through a signed tag. Maintainers publish a tag with:
+
+```
+scripts/omx-track-tag.sh <checkout> [<commit>] --push <remote>
+```
+
 ## OpenMixer in this Zynthian
 
 On this fork OpenMixer is part of the default install; in the [series offered upstream](https://github.com/FreeMixer/plugin-hostd/blob/main/docs/zynthian/upstream-series.md) each part stays off until a user switches it on. No file that configures JACK changes: Zynthian stays on jackd. What is proven and what is still open: [plugin-hostd's Zynthian status](https://github.com/FreeMixer/plugin-hostd/blob/main/docs/zynthian/status.md). A new image built from this fork, and an existing Zynthian on its next `update_zynthian_sys.sh` (or `update_system_image.sh`), end up with:

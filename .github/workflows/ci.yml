@@ -1,0 +1,35 @@
+name: ci
+
+# The fork's own scripts, checked the way they run on a device: the daily
+# follower takes only signed omx-track tags, and the first install takes only
+# the openmixer-release the channel signed.
+
+on:
+  pull_request:
+  push:
+    branches: [vangelis]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: omx-track-latest and omx-fetch-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: debian:trixie
+    steps:
+      - name: Install the tools
+        run: apt-get update -qq && apt-get install -y --no-install-recommends git gnupg gpgv curl ca-certificates systemd
+      - uses: actions/checkout@v4
+      - name: The follower takes only signed tags
+        run: tests/omx-track-latest-check.sh
+      - name: The first install takes only the signed openmixer-release
+        run: tests/omx-fetch-release-check.sh
+      - name: The pinned keys are the ones the channel and the tags use
+        run: |
+          fpr() { gpg --batch --with-colons --import-options show-only --import < "$1" 2>/dev/null | awk -F: '/^pub:/ {p = 1; next} /^fpr:/ && p {print $10; p = 0}' | sort | tr '\n' ' '; }
+          test "$(fpr keys/track-signing-keys.asc)" = "CDF862E9AD6220BF2516A03BFB7F93FCE4251A3A "
+          curl -fsSL https://www.openmixer.org/deb/openmixer.asc > /tmp/served.asc
+          test "$(fpr keys/openmixer-archive-keyring.asc)" = "$(fpr /tmp/served.asc)"
