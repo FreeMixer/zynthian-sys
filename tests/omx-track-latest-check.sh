@@ -139,20 +139,29 @@ check "local commits are left alone and reported" test "$rc" = 1 -a "$(git -C "$
 # (tip of the branch on the remote they already have) move together or not at all
 S=$w/set
 mkdir -p "$S/z" "$S/cfg"
+# The branch each repository really has upstream. Not invented: the check right
+# below refuses these names when the real scripts say otherwise (a fixture that
+# used vangelis for zynthian-packages hid a refusal on every device)
+sbr() { case $1 in zynthian-packages) echo main ;; *) echo vangelis ;; esac; }
+sd=$(cd "$(dirname "$0")/.." && pwd)/scripts
+stable=$(sed -n 's/^export ZYNTHIAN_STABLE_BRANCH="\(.*\)"/\1/p' "$sd/zynthian_envars_extended.sh")
+check "fixture branches: webconf is cloned on the stable branch, as the fixture has it" test "$(grep -c -E 'clone .*-b "\$\{ZYNTHIAN_WEBCONF_BRANCH\}"' "$sd/reset_zynthian_repos.sh")" = 1 -a "$stable" = "$(sbr zynthian-webconf)"
+check "fixture branches: packages is cloned with no -b (upstream default, main), as the fixture has it" test "$(grep -E 'clone .*ZYNTHIAN_PACKAGES_REPO' "$sd/reset_zynthian_repos.sh" | grep -c -- ' -b ')" = 0 -a "$(sbr zynthian-packages)" = main
+check "fixture branches: update_zynthian_data.sh pulls packages on the checkout's own branch" bash -c 'sed -n "/zynthian-packages\"/,/git pull/p" "$1" | grep -qx "git pull"' _ "$sd/update_zynthian_data.sh"
 for n in zynthian-sys zynthian-webconf zynthian-packages; do
-	git -c init.defaultBranch=vangelis init -q --bare "$S/$n.git"
-	git -c init.defaultBranch=vangelis init -q "$S/src-$n"
+	git -c init.defaultBranch="$(sbr $n)" init -q --bare "$S/$n.git"
+	git -c init.defaultBranch="$(sbr $n)" init -q "$S/src-$n"
 	echo 1 >"$S/src-$n/f"
 	git -C "$S/src-$n" -c user.name=t -c user.email=t@t add f
 	git -C "$S/src-$n" -c user.name=t -c user.email=t@t commit -qm one
-	git -C "$S/src-$n" remote add o "$S/$n.git"; git -C "$S/src-$n" push -q o vangelis
+	git -C "$S/src-$n" remote add o "$S/$n.git"; git -C "$S/src-$n" push -q o "$(sbr $n)"
 	git clone -q "$S/$n.git" "$S/z/$n"
 done
 # zynthian-sys has a fork remote; webconf and packages keep their origin, which does not name the fork
 git -C "$S/z/zynthian-sys" remote rename origin fork
 printf '#!/bin/bash\necho "$ZYNTHIAN_CONFIG_DIR" >>"$CREATE_LOG"; mkdir -p "$ZYNTHIAN_CONFIG_DIR/packages"\n' >"$S/create"
 chmod +x "$S/create"
-spush() { echo "$2" >"$S/src-$1/f"; git -C "$S/src-$1" -c user.name=t -c user.email=t@t commit -qam "$2"; git -C "$S/src-$1" push -q o vangelis; }
+spush() { echo "$2" >"$S/src-$1/f"; git -C "$S/src-$1" -c user.name=t -c user.email=t@t commit -qam "$2"; git -C "$S/src-$1" push -q o "$(sbr $1)"; }
 stip() { git -C "$S/z/$1" rev-parse HEAD; }
 ssrc() { git -C "$S/src-$1" rev-parse HEAD; }
 stag() { "$TAG" "$S/src-zynthian-sys" --name zynthian-sys --key "$(fpr release@example.org)" --push o >/dev/null; }
