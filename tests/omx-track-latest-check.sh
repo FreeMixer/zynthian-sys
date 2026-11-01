@@ -135,6 +135,62 @@ rm "$w/hold"
 echo local >"$w/dev/zui/l"; git -C "$w/dev/zui" add l; git -C "$w/dev/zui" -c user.name=t -c user.email=t@t commit -qm local
 out=$(run); rc=$?
 check "local commits are left alone and reported" test "$rc" = 1 -a "$(git -C "$w/dev/zui" log -1 --format=%s)" = local
+# The sys set: zynthian-sys (signed tag), zynthian-webconf and zynthian-packages
+# (tip of the branch on the remote they already have) move together or not at all
+S=$w/set
+mkdir -p "$S/z" "$S/cfg"
+for n in zynthian-sys zynthian-webconf zynthian-packages; do
+	git -c init.defaultBranch=vangelis init -q --bare "$S/$n.git"
+	git -c init.defaultBranch=vangelis init -q "$S/src-$n"
+	echo 1 >"$S/src-$n/f"
+	git -C "$S/src-$n" -c user.name=t -c user.email=t@t add f
+	git -C "$S/src-$n" -c user.name=t -c user.email=t@t commit -qm one
+	git -C "$S/src-$n" remote add o "$S/$n.git"; git -C "$S/src-$n" push -q o vangelis
+	git clone -q "$S/$n.git" "$S/z/$n"
+done
+# zynthian-sys has a fork remote; webconf and packages keep their origin, which does not name the fork
+git -C "$S/z/zynthian-sys" remote rename origin fork
+printf '#!/bin/bash\necho "$ZYNTHIAN_CONFIG_DIR" >>"$CREATE_LOG"; mkdir -p "$ZYNTHIAN_CONFIG_DIR/packages"\n' >"$S/create"
+chmod +x "$S/create"
+spush() { echo "$2" >"$S/src-$1/f"; git -C "$S/src-$1" -c user.name=t -c user.email=t@t commit -qam "$2"; git -C "$S/src-$1" push -q o vangelis; }
+stip() { git -C "$S/z/$1" rev-parse HEAD; }
+ssrc() { git -C "$S/src-$1" rev-parse HEAD; }
+stag() { "$TAG" "$S/src-zynthian-sys" --name zynthian-sys --key "$(fpr release@example.org)" --push o >/dev/null; }
+srun() {
+	: >"$w/sc.log"
+	FORK_URL_PATTERN=$S/zynthian-sys.git REPOS="$S/z/zynthian-sys" PACKAGES=omx-panel HOLD_FILE="$w/hold" TRACK_KEYS=$keys \
+		APT_GET="$w/bin/apt" DPKG_QUERY="$w/bin/dq" SYSTEMCTL="$w/bin/sc" ZYNTHIAN_CONFIG_DIR="$S/cfg" \
+		CREATE_PACKAGES="$S/create" CREATE_LOG="$S/create.log" \
+		APT_LOG="$w/apt.log" SC_LOG="$w/sc.log" PKGV="$w/pkgv" "$SCRIPT" 2>&1
+}
+spush zynthian-sys two; spush zynthian-webconf two; spush zynthian-packages two; stag
+out=$(srun); rc=$?
+check "sys set: sys moves to the signed tag" test "$(stip zynthian-sys)" = "$(ssrc zynthian-sys)"
+check "sys set: webconf follows" test "$(stip zynthian-webconf)" = "$(ssrc zynthian-webconf)"
+check "sys set: packages follows" test "$(stip zynthian-packages)" = "$(ssrc zynthian-packages)"
+check "sys set: the create step ran once" test "$(wc -l <"$S/create.log" 2>/dev/null)" = 1
+check "sys set: webconf and zynthian restarted" test "$(cat "$w/sc.log")" = "$(printf 'restart zynthian-webconf\nrestart zynthian')"
+check "sys set: a clean run exits 0" test "$rc" = 0
+srun >/dev/null
+check "sys set: the create step is not run again" test "$(wc -l <"$S/create.log")" = 1
+# webconf cannot move: nothing moves, the journal says why
+spush zynthian-sys three; spush zynthian-webconf three; spush zynthian-packages three; stag
+echo dirty >>"$S/z/zynthian-webconf/f"
+before=$(stip zynthian-sys)$(stip zynthian-webconf)$(stip zynthian-packages)
+out=$(srun); rc=$?
+check "sys set: one blocked, none moves" test "$(stip zynthian-sys)$(stip zynthian-webconf)$(stip zynthian-packages)" = "$before"
+check "sys set: the journal says which and why" bash -c 'grep -q "zynthian-webconf: working tree has local changes" <<<"$1" && grep -q "zynthian-webconf cannot move.*left where they were" <<<"$1"' _ "$out"
+check "sys set: a blocked run fails and restarts nothing" test "$rc" = 1 -a ! -s "$w/sc.log"
+git -C "$S/z/zynthian-webconf" checkout -q f
+# a device whose sys is already current but webconf is behind (today's state) catches up
+spush zynthian-webconf four
+git -C "$S/z/zynthian-sys" merge -q --ff-only "$(ssrc zynthian-sys)" 2>/dev/null
+out=$(srun)
+check "sys set: webconf catches up when sys is already current" test "$(stip zynthian-webconf)" = "$(ssrc zynthian-webconf)"
+# the create step failing is retried, not remembered
+rm -rf "$S/cfg/packages"; printf '#!/bin/bash\nmkdir -p "$ZYNTHIAN_CONFIG_DIR/packages"; exit 1\n' >"$S/create"
+out=$(srun); rc=$?
+check "sys set: a failed create step fails the run and leaves no half list" test "$rc" = 1 -a ! -d "$S/cfg/packages"
 rm -rf "$w"
 unset GNUPGHOME GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL
 
