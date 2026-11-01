@@ -36,6 +36,18 @@ Anything else leaves the device where it is, with a line in the journal saying w
 scripts/omx-track-tag.sh <checkout> [<commit>] --push <remote>
 ```
 
+### What an update moves
+
+Upstream's package system needs zynthian-sys, zynthian-webconf and zynthian-packages at one level, and the installed-packages list created. So an update of zynthian-sys moves three checkouts:
+
+- zynthian-ui, to its newest signed tag, as before;
+- zynthian-sys, to its newest signed tag;
+- zynthian-webconf and zynthian-packages, to the tip of `vangelis` on the remote each checkout already has. The script changes no remote.
+
+The three of the package set move together or not at all: if one of them cannot (a fetch fails, local changes, local commits), none moves and the journal names it. When they are in place, the script creates the installed-packages list with `sbin/create_installed_packages.sh`, once, if `/zynthian/config/packages` is missing, the way `update_zynthian_data.sh` does. If that fails it is tried again on the next run. A moved webconf restarts `zynthian-webconf` along with `zynthian`.
+
+A device that already follows the fork needs nothing by hand: the next run does the one-time create step. A tester who runs `update_zynthian.sh` by hand gets the same create step from `update_zynthian_data.sh`.
+
 ## OpenMixer in this Zynthian
 
 On this fork OpenMixer is part of the default install; in the [series offered upstream](https://github.com/FreeMixer/plugin-hostd/blob/main/docs/zynthian/upstream-series.md) each part stays off until a user switches it on. No file that configures JACK changes: Zynthian stays on jackd. What is proven and what is still open: [plugin-hostd's Zynthian status](https://github.com/FreeMixer/plugin-hostd/blob/main/docs/zynthian/status.md). A new image built from this fork, and an existing Zynthian on its next `update_zynthian_sys.sh` (or `update_system_image.sh`), end up with:
