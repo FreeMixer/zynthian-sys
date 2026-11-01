@@ -28,6 +28,13 @@
 #******************************************************************************
 
 BRANCH=${BRANCH:-vangelis}
+# The branch each tip-followed repository is on upstream, as upstream's own
+# scripts have it: zynthian-webconf is cloned with -b $ZYNTHIAN_WEBCONF_BRANCH
+# (the stable branch, vangelis) and update_zynthian_code.sh pulls that branch;
+# zynthian-packages is cloned with no -b (upstream has only main) and
+# update_zynthian_data.sh pulls it. zynthian-ui and zynthian-sys use $BRANCH.
+WEBCONF_BRANCH=${WEBCONF_BRANCH:-vangelis}
+PACKAGES_BRANCH=${PACKAGES_BRANCH:-main}
 TAG_PREFIX=omx-track/
 TRACK_KEYS=${TRACK_KEYS:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)/keys/track-signing-keys.asc}
 FORK_URL_PATTERN=${FORK_URL_PATTERN:-FreeMixer/}
@@ -114,8 +121,13 @@ verified_commit() {
 # (PLAN_COMMIT may equal HEAD), 1 when it is blocked with a journal line saying
 # why (PLAN_QUIET=1: not a failure, there is simply nothing to take).
 plan_repo() {
-	local repo=$1 mode=$2 name remote newest ref
+	local repo=$1 mode=$2 name remote newest ref br=$BRANCH
 	name=$(basename "$repo")
+	case $name in
+	zynthian-webconf) br=$WEBCONF_BRANCH ;;
+	zynthian-packages) br=$PACKAGES_BRANCH ;;
+	esac
+	PLAN_BRANCH=$br
 	PLAN_QUIET=0
 	PLAN_FORGED=0
 	PLAN_COMMIT=""
@@ -123,12 +135,12 @@ plan_repo() {
 	if [ "$mode" = tip ]; then
 		remote=origin
 		"$GIT" -C "$repo" remote get-url fork >/dev/null 2>&1 && remote=fork
-		if ! "$GIT" -C "$repo" fetch -q "$remote" "$BRANCH"; then
-			say "$name: fetch of $BRANCH from $remote failed"
+		if ! "$GIT" -C "$repo" fetch -q "$remote" "$br"; then
+			say "$name: fetch of $br from $remote failed"
 			return 1
 		fi
-		PLAN_COMMIT=$("$GIT" -C "$repo" rev-parse "$remote/$BRANCH^{commit}") || return 1
-		PLAN_LABEL="$BRANCH tip"
+		PLAN_COMMIT=$("$GIT" -C "$repo" rev-parse "$remote/$br^{commit}") || return 1
+		PLAN_LABEL="$br tip"
 	else
 		if ! remote=$(fork_remote "$repo"); then
 			say "$name: no remote points at the fork, skipped"
@@ -166,15 +178,15 @@ plan_repo() {
 		say "$name: working tree has local changes, left alone"
 		return 1
 	fi
-	if ! "$GIT" -C "$repo" show-ref -q --verify "refs/heads/$BRANCH"; then
-		"$GIT" -C "$repo" branch -q "$BRANCH" HEAD || return 1
+	if ! "$GIT" -C "$repo" show-ref -q --verify "refs/heads/$br"; then
+		"$GIT" -C "$repo" branch -q "$br" HEAD || return 1
 	fi
-	if "$GIT" -C "$repo" merge-base --is-ancestor "$PLAN_COMMIT" "$BRANCH"; then
-		PLAN_COMMIT=$("$GIT" -C "$repo" rev-parse "$BRANCH")
+	if "$GIT" -C "$repo" merge-base --is-ancestor "$PLAN_COMMIT" "$br"; then
+		PLAN_COMMIT=$("$GIT" -C "$repo" rev-parse "$br")
 		return 0
 	fi
-	if ! "$GIT" -C "$repo" merge-base --is-ancestor "$BRANCH" "$PLAN_COMMIT"; then
-		say "$name: $BRANCH has local commits the $PLAN_LABEL lacks, left alone"
+	if ! "$GIT" -C "$repo" merge-base --is-ancestor "$br" "$PLAN_COMMIT"; then
+		say "$name: $br has local commits the $PLAN_LABEL lacks, left alone"
 		return 1
 	fi
 	return 0
@@ -185,7 +197,7 @@ apply_repo() {
 	local repo=$1 name after
 	name=$(basename "$repo")
 	MOVED=0
-	"$GIT" -C "$repo" checkout -q "$BRANCH" && "$GIT" -C "$repo" merge -q --ff-only "$PLAN_COMMIT" || {
+	"$GIT" -C "$repo" checkout -q "$PLAN_BRANCH" && "$GIT" -C "$repo" merge -q --ff-only "$PLAN_COMMIT" || {
 		say "$name: fast-forward failed"
 		return 1
 	}
@@ -215,12 +227,13 @@ track_repo() {
 # that fails after another moved puts the moved ones back.
 track_sys_set() {
 	local sys=$1 dir r i n
-	local repos=() commits=() befores=() labels=()
+	local repos=() branches=() commits=() befores=() labels=()
 	dir=$(dirname "$sys")
 	for r in "$sys" "${WEBCONF_DIR:-$dir/zynthian-webconf}" "${PACKAGES_DIR:-$dir/zynthian-packages}"; do
 		if plan_repo "$r" "$([ "$r" = "$sys" ] && echo tag || echo tip)"; then
 			[ "$PLAN_FORGED" = 1 ] && failed=1
 			repos+=("$r")
+			branches+=("$PLAN_BRANCH")
 			commits+=("$PLAN_COMMIT")
 			befores+=("$PLAN_BEFORE")
 			labels+=("$PLAN_LABEL")
@@ -231,7 +244,7 @@ track_sys_set() {
 		return
 	done
 	for i in 0 1 2; do
-		PLAN_COMMIT=${commits[$i]} PLAN_BEFORE=${befores[$i]} PLAN_LABEL=${labels[$i]}
+		PLAN_BRANCH=${branches[$i]} PLAN_COMMIT=${commits[$i]} PLAN_BEFORE=${befores[$i]} PLAN_LABEL=${labels[$i]}
 		if ! apply_repo "${repos[$i]}"; then
 			say "zynthian-sys set: $(basename "${repos[$i]}") did not move, putting the others back"
 			for ((n = 0; n < i; n++)); do
