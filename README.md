@@ -50,7 +50,7 @@ A device that already follows the fork needs nothing by hand: the next run does 
 
 ## OpenMixer in this Zynthian
 
-On this fork OpenMixer is part of the default install; in the [series offered upstream](https://github.com/FreeMixer/plugin-hostd/blob/main/docs/zynthian/upstream-series.md) each part stays off until a user switches it on. No file that configures JACK changes: Zynthian stays on jackd. What is proven and what is still open: [plugin-hostd's Zynthian status](https://github.com/FreeMixer/plugin-hostd/blob/main/docs/zynthian/status.md). A new image built from this fork, and an existing Zynthian on its next `update_zynthian_sys.sh` (or `update_system_image.sh`), end up with:
+On this fork OpenMixer is part of the default install; in the series offered upstream each part stays off until a user switches it on. No file that configures JACK changes: Zynthian stays on jackd. How to install and use it, and where it stands: <https://openmixer.org/docs/zynthian>. A new image built from this fork, and an existing Zynthian on its next `update_zynthian_sys.sh` (or `update_system_image.sh`), end up with:
 
 - the OpenMixer repository and plugin-hostd, omx-clap-host (with omx-clap-scan), omx-plugins, omx-panel and plugin-qualify;
 - plugin-hostd as the mod-host of MOD-UI (`ZYNTHIAN_MODHOST_BACKEND=plugin-hostd`) and as the engine the UI menus offer LV2 plugins through (`ZYNTHIAN_PLUGIN_ENGINE=plugin-hostd`);
@@ -69,6 +69,8 @@ sed -i 's/^require_pins .*/require_pins 0/' /zynthian/config/plugin-hostd.conf
 ```
 
 An image builder can ship the image already qualified: after the setup script, run `scripts/omx_prequalify_image.sh` on the assembled system. It runs the sync once and writes the pin file, records and descriptors where the services read them; it packages nothing. It must run natively on arm64 (a Raspberry Pi): the results are keyed by the hashes of the plugin files and measured on the CPU, so it refuses to run elsewhere or under emulation. Without it, the first boot does the same work in the background.
+
+How the published image is built from upstream's release: [docs/openmixer-image.md](docs/openmixer-image.md).
 
 ## plugin-hostd as the mod-host of MOD-UI
 
