@@ -7,7 +7,7 @@
 # The one place a plugin-hostd is started on this image: mod-host-backend.sh
 # runs it for MOD-UI's daemon on 5555, and the UI's plugin-hostd engine runs it
 # for its own on ZYNTHIAN_PLUGIN_HOSTD_PORT. Ready is the line the daemon
-# declares in its protocol.json (readiness.daemon_line), printed once both its
+# declares in its protocol file (readiness.daemon_line), printed once both its
 # ports accept, and nothing else.
 #
 # A plugin-hostd already running on the port is left as it is, and that is
@@ -28,7 +28,15 @@ FEEDBACK_PORT=$2
 PHD_CONF=${PHD_CONF:-$ZYNTHIAN_CONFIG_DIR/plugin-hostd.conf}
 PHD_CONF_DEFAULT="$ZYNTHIAN_SYS_DIR/config/plugin-hostd.conf"
 PHD_STATE=${PHD_STATE:-/run/plugin-hostd}
-PHD_PROTOCOL=${PHD_PROTOCOL:-/usr/share/plugin-hostd/protocol.json}
+# libplugin-hostd-protocol0 (plugin-hostd 0.16.0 on) installs the daemon's
+# protocol file as plugin-hostd.json in its own directory; plugin-hostd before
+# 0.16.0 installed it as protocol.json in its directory. The first that exists.
+PHD_PROTOCOL_PLACES=${PHD_PROTOCOL_PLACES:-/usr/share/plugin-hostd-protocol/plugin-hostd.json /usr/share/plugin-hostd/protocol.json}
+if [ -z "$PHD_PROTOCOL" ]; then
+	for PHD_PROTOCOL in $PHD_PROTOCOL_PLACES; do
+		[ -f "$PHD_PROTOCOL" ] && break
+	done
+fi
 READY_TIMEOUT=${READY_TIMEOUT:-10}
 
 case "$PORT" in
