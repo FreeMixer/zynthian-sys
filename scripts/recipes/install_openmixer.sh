@@ -1,19 +1,23 @@
 #!/bin/bash
 #******************************************************************************
-# Install the OpenMixer packages on this Zynthian:
+# Install the OpenMixer packages on this Zynthian and set up the qualification:
 #
 #   install_openmixer.sh [--upgrade]
 #
 # - the OpenMixer apt repository (package openmixer-release, which carries the
 #   signing key and one apt source per Debian release);
 # - plugin-hostd, omx-clap-host (with omx-clap-scan), omx-plugins, omx-panel
-#   and plugin-qualify.
+#   and plugin-qualify;
+# - /zynthian/config/plugin-hostd.conf with the pins of the qualification sync;
+# - the qualification sync (plugin-qualify-sync.timer and .path) with
+#   Zynthian's plugin directories in /etc/omx/qualify.conf.
 #
 # It does not make plugin-hostd the mod-host of MOD-UI nor the UI's plugin
 # engine: ZYNTHIAN_MODHOST_BACKEND and ZYNTHIAN_PLUGIN_ENGINE choose that.
-# The packages are installed once (the steps done are listed in
-# $ZYNTHIAN_CONFIG_DIR/openmixer-defaults); --upgrade also upgrades them. No
-# service is started, stopped or restarted.
+# Each of these is done once: the steps done are listed in
+# $ZYNTHIAN_CONFIG_DIR/openmixer-defaults, so a later run leaves a setting
+# changed by hand as it is. --upgrade also upgrades the packages. No service
+# is started, stopped or restarted: the last lines say what applies when.
 #******************************************************************************
 
 PACKAGES="plugin-hostd omx-clap-host omx-plugins omx-panel plugin-qualify"
@@ -21,6 +25,10 @@ PACKAGES="plugin-hostd omx-clap-host omx-plugins omx-panel plugin-qualify"
 ZYNTHIAN_CONFIG_DIR=${ZYNTHIAN_CONFIG_DIR:-/zynthian/config}
 ZYNTHIAN_SYS_DIR=${ZYNTHIAN_SYS_DIR:-/zynthian/zynthian-sys}
 DONE_FILE="$ZYNTHIAN_CONFIG_DIR/openmixer-defaults"
+PHD_CONF="$ZYNTHIAN_CONFIG_DIR/plugin-hostd.conf"
+QUALIFY_CONF=${QUALIFY_CONF:-/etc/omx/qualify.conf}
+SYSTEMD_UNIT_DIR=${SYSTEMD_UNIT_DIR:-/usr/lib/systemd/system}
+SYNC_UNITS="plugin-qualify-sync.timer plugin-qualify-sync.path"
 APT_OPTS=(-y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
 
 upgrade=0
@@ -32,7 +40,8 @@ esac
 
 arch=$(dpkg --print-architecture)
 case "$arch" in
-	arm64 | amd64) ;;
+	arm64) multiarch=aarch64-linux-gnu ;;
+	amd64) multiarch=x86_64-linux-gnu ;;
 	*)
 		echo "OpenMixer packages are built for arm64 and amd64, not $arch. Skipping."
 		exit 0
@@ -54,6 +63,18 @@ version_of() {
 
 is_done() { grep -qx "$1" "$DONE_FILE" 2>/dev/null; }
 mark_done() { is_done "$1" || echo "$1" >>"$DONE_FILE"; }
+
+# The value of a key in a "key value" file, the last line winning
+conf_get() {
+	sed -n "s/^$2[[:space:]]\{1,\}//p" "$1" | tail -n 1
+}
+conf_set() {
+	if grep -q "^$2[[:space:]]" "$1"; then
+		sed -i "s|^$2[[:space:]].*|$2 $3|" "$1"
+	else
+		printf '%s %s\n' "$2" "$3" >>"$1"
+	fi
+}
 
 mkdir -p "$ZYNTHIAN_CONFIG_DIR"
 
@@ -112,6 +133,78 @@ if is_installed omx-clap-host && ! command -v omx-clap-scan >/dev/null; then
 fi
 
 #------------------------------------------------------------------------------
+# Zynthian settings
+#------------------------------------------------------------------------------
+
+# plugin-hostd.conf: pins required, from the sync's pin file
+phd_changed=0
+if ! is_done hostd-conf && command -v plugin-hostd >/dev/null; then
+	if [ ! -f "$PHD_CONF" ]; then
+		cp "$ZYNTHIAN_SYS_DIR/config/plugin-hostd.conf" "$PHD_CONF"
+		change "wrote $PHD_CONF"
+		phd_changed=1
+	else
+		for kv in "require_pins 1" "pin_mode first-use" "pin_file /var/lib/omx/qualified.pins" \
+			"qualification_dir /var/lib/omx/qualification" "descriptor_dir /var/lib/omx/descriptors"; do
+			key=${kv%% *}
+			value=${kv#* }
+			old=$(conf_get "$PHD_CONF" "$key")
+			if [ "$old" != "$value" ]; then
+				conf_set "$PHD_CONF" "$key" "$value"
+				change "$key ${old:-unset} -> $value in $PHD_CONF"
+				phd_changed=1
+			fi
+		done
+	fi
+	mark_done hostd-conf
+fi
+
+# The pin file must exist for plugin-hostd to start: empty until the first sync.
+# Not a step done once: it is put back at every boot and every run.
+TMPFILES_CONF=/etc/tmpfiles.d/omx-qualified-pins.conf
+if command -v plugin-hostd >/dev/null; then
+	if ! cmp -s "$ZYNTHIAN_SYS_DIR/etc/tmpfiles.d/omx-qualified-pins.conf" "$TMPFILES_CONF"; then
+		mkdir -p /etc/tmpfiles.d
+		cp "$ZYNTHIAN_SYS_DIR/etc/tmpfiles.d/omx-qualified-pins.conf" "$TMPFILES_CONF"
+		change "wrote $TMPFILES_CONF"
+	fi
+	if [ ! -e /var/lib/omx/qualified.pins ]; then
+		systemd-tmpfiles --create "$TMPFILES_CONF"
+		change "created an empty /var/lib/omx/qualified.pins"
+	fi
+fi
+
+# qualify.conf: Zynthian's directories, unless the file already holds settings
+if ! is_done qualify-conf && is_installed plugin-qualify; then
+	rendered=$(sed "s/#MULTIARCH#/$multiarch/g" "$ZYNTHIAN_SYS_DIR/config/qualify.conf")
+	if [ -f "$QUALIFY_CONF" ] && [ "$(cat "$QUALIFY_CONF")" = "$rendered" ]; then
+		:
+	elif [ -f "$QUALIFY_CONF" ] && grep -q '^[[:space:]]*[^#[:space:]]' "$QUALIFY_CONF"; then
+		note "$QUALIFY_CONF holds settings of its own: left as it is"
+	else
+		mkdir -p "$(dirname "$QUALIFY_CONF")"
+		echo "$rendered" >"$QUALIFY_CONF"
+		change "wrote Zynthian's plugin directories to $QUALIFY_CONF"
+	fi
+	mark_done qualify-conf
+fi
+
+# The sync's units: enabled, not started. The timer's first run is two
+# minutes after the next boot; the path unit runs it when a plugin is installed.
+if ! is_done qualify-sync && is_installed plugin-qualify; then
+	if [ -f "$SYSTEMD_UNIT_DIR/plugin-qualify-sync.timer" ]; then
+		for u in $SYNC_UNITS; do
+			if [ "$(systemctl is-enabled "$u" 2>/dev/null)" != enabled ]; then
+				systemctl enable "$u" >/dev/null 2>&1 && change "enabled $u" || { note "could not enable $u"; failed=1; }
+			fi
+		done
+		[ "$failed" = 0 ] && mark_done qualify-sync
+	else
+		note "plugin-qualify $(version_of plugin-qualify) has no qualification sync yet: the next run after an upgrade enables it"
+	fi
+fi
+
+#------------------------------------------------------------------------------
 # Report
 #------------------------------------------------------------------------------
 
@@ -122,4 +215,7 @@ else
 	for c in "${changes[@]}"; do echo "  $c"; done
 fi
 for n in "${notes[@]}"; do echo "  note: $n"; done
+if [ "$phd_changed" = 1 ]; then
+	echo "  plugin-hostd was not restarted: the change applies at its next start"
+fi
 exit "$failed"

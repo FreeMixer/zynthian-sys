@@ -1,0 +1,5 @@
+// Updates run with no terminal, where a conffile question stops dpkg. A
+// conffile edited here (/etc/omx/qualify.conf, written by install_openmixer.sh)
+// is kept and the package's new one is left beside it as .dpkg-dist; an
+// unedited one is replaced.
+DPkg::Options { "--force-confdef"; "--force-confold"; };
