@@ -95,6 +95,9 @@ cd ./scripts
 #apt-get -y update --allow-releaseinfo-change
 #apt-get -y upgrade
 
+# OpenMixer: upgrade its packages (update_zynthian_sys.sh above made it the default)
+$ZYNTHIAN_RECIPE_DIR/install_openmixer.sh --upgrade
+
 #------------------------------------------------------------------------------
 # Adjustments ...
 #------------------------------------------------------------------------------

@@ -92,10 +92,10 @@ export ZYNTHIAN_USB_MIDI_BY_PORT="0"
 export ZYNTHIAN_AUBIONOTES_OPTIONS="-O complex -t 0.5 -s -88  -p yinfft -l 0.5"
 #export ZYNTHIAN_AUBIONOTES_OPTIONS="-O hfc -t 0.5 -s -60 -p yinfft -l 0.6"
 
-# What runs as mod-host for MOD-UI: jack_load or plugin-hostd (set_modhost_backend.sh)
-export ZYNTHIAN_MODHOST_BACKEND="jack_load"
-# The engine the UI menus offer LV2 plugins through: jalv or plugin-hostd
-export ZYNTHIAN_PLUGIN_ENGINE="jalv"
+# What runs as mod-host for MOD-UI: plugin-hostd or jack_load (set_modhost_backend.sh)
+export ZYNTHIAN_MODHOST_BACKEND="plugin-hostd"
+# The engine the UI menus offer LV2 plugins through: plugin-hostd or jalv
+export ZYNTHIAN_PLUGIN_ENGINE="plugin-hostd"
 # The command port of the plugin-hostd the UI engine runs (mod-host keeps 5555 for MOD-UI)
 export ZYNTHIAN_PLUGIN_HOSTD_PORT="5570"
 

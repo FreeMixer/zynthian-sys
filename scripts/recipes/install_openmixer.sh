@@ -1,6 +1,6 @@
 #!/bin/bash
 #******************************************************************************
-# Install the OpenMixer packages on this Zynthian and set up the qualification:
+# Install OpenMixer on this Zynthian and make it the default:
 #
 #   install_openmixer.sh [--upgrade]
 #
@@ -8,12 +8,12 @@
 #   signing key and one apt source per Debian release);
 # - plugin-hostd, omx-clap-host (with omx-clap-scan), omx-plugins, omx-panel
 #   and plugin-qualify;
+# - plugin-hostd as the mod-host of MOD-UI and as the engine the UI menus
+#   offer LV2 plugins through (ZYNTHIAN_MODHOST_BACKEND, ZYNTHIAN_PLUGIN_ENGINE);
 # - /zynthian/config/plugin-hostd.conf with the pins of the qualification sync;
 # - the qualification sync (plugin-qualify-sync.timer and .path) with
 #   Zynthian's plugin directories in /etc/omx/qualify.conf.
 #
-# It does not make plugin-hostd the mod-host of MOD-UI nor the UI's plugin
-# engine: ZYNTHIAN_MODHOST_BACKEND and ZYNTHIAN_PLUGIN_ENGINE choose that.
 # Each of these is done once: the steps done are listed in
 # $ZYNTHIAN_CONFIG_DIR/openmixer-defaults, so a later run leaves a setting
 # changed by hand as it is. --upgrade also upgrades the packages. No service
@@ -24,6 +24,7 @@ PACKAGES="plugin-hostd omx-clap-host omx-plugins omx-panel plugin-qualify"
 
 ZYNTHIAN_CONFIG_DIR=${ZYNTHIAN_CONFIG_DIR:-/zynthian/config}
 ZYNTHIAN_SYS_DIR=${ZYNTHIAN_SYS_DIR:-/zynthian/zynthian-sys}
+ENVARS="$ZYNTHIAN_CONFIG_DIR/zynthian_envars.sh"
 DONE_FILE="$ZYNTHIAN_CONFIG_DIR/openmixer-defaults"
 PHD_CONF="$ZYNTHIAN_CONFIG_DIR/plugin-hostd.conf"
 QUALIFY_CONF=${QUALIFY_CONF:-/etc/omx/qualify.conf}
@@ -63,6 +64,18 @@ version_of() {
 
 is_done() { grep -qx "$1" "$DONE_FILE" 2>/dev/null; }
 mark_done() { is_done "$1" || echo "$1" >>"$DONE_FILE"; }
+
+# The value of an exported variable in zynthian_envars.sh, quotes removed
+envar_get() {
+	sed -n "s/^export $1=[\"']\{0,1\}\([^\"']*\).*/\1/p" "$ENVARS" | tail -n 1
+}
+envar_set() {
+	if grep -q "^export $1=" "$ENVARS"; then
+		sed -i "s/^export $1=.*/export $1=\"$2\"/" "$ENVARS"
+	else
+		echo "export $1=\"$2\"" >>"$ENVARS"
+	fi
+}
 
 # The value of a key in a "key value" file, the last line winning
 conf_get() {
@@ -135,6 +148,27 @@ fi
 #------------------------------------------------------------------------------
 # Zynthian settings
 #------------------------------------------------------------------------------
+
+# The envars: zynthian_envars.sh's defaults carry both; this is for a config
+# made before them. Without the file (a new image) update_zynthian_sys.sh
+# copies the defaults and runs this again.
+modhost_changed=0
+engine_changed=0
+if ! is_done envars && [ -f "$ENVARS" ] && command -v plugin-hostd >/dev/null; then
+	old=$(envar_get ZYNTHIAN_MODHOST_BACKEND)
+	if [ "$old" != plugin-hostd ]; then
+		envar_set ZYNTHIAN_MODHOST_BACKEND plugin-hostd
+		change "ZYNTHIAN_MODHOST_BACKEND ${old:-unset} -> plugin-hostd in $ENVARS"
+		modhost_changed=1
+	fi
+	old=$(envar_get ZYNTHIAN_PLUGIN_ENGINE)
+	if [ -z "$old" ]; then
+		envar_set ZYNTHIAN_PLUGIN_ENGINE plugin-hostd
+		change "ZYNTHIAN_PLUGIN_ENGINE unset -> plugin-hostd in $ENVARS"
+		engine_changed=1
+	fi
+	mark_done envars
+fi
 
 # plugin-hostd.conf: pins required, from the sync's pin file
 phd_changed=0
@@ -209,13 +243,17 @@ fi
 #------------------------------------------------------------------------------
 
 if [ ${#changes[@]} = 0 ]; then
-	echo "OpenMixer: nothing to change"
+	echo "OpenMixer defaults: nothing to change"
 else
-	echo "OpenMixer: ${#changes[@]} changed"
+	echo "OpenMixer defaults: ${#changes[@]} changed"
 	for c in "${changes[@]}"; do echo "  $c"; done
 fi
 for n in "${notes[@]}"; do echo "  note: $n"; done
-if [ "$phd_changed" = 1 ]; then
-	echo "  plugin-hostd was not restarted: the change applies at its next start"
+if [ "$modhost_changed" = 1 ] || [ "$phd_changed" = 1 ]; then
+	echo "  mod-host and mod-ui were not restarted: the change applies at their next start"
+	echo "  (a reboot, or now: $ZYNTHIAN_SYS_DIR/sbin/set_modhost_backend.sh plugin-hostd)"
+fi
+if [ "$engine_changed" = 1 ]; then
+	echo "  zynthian was not restarted: the menus offer plugin-hostd from its next start"
 fi
 exit "$failed"

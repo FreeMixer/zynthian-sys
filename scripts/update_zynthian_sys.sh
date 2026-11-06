@@ -611,6 +611,10 @@ elif [ "$(systemctl is-enabled omx-modgui-sync)" != "enabled" ]; then
 	systemctl enable omx-modgui-sync
 fi
 
+# OpenMixer as the default, once: packages, plugin-hostd as mod-host and UI
+# engine, the qualification sync. It restarts nothing and says what changed.
+$ZYNTHIAN_RECIPE_DIR/install_openmixer.sh
+
 if [ -f "$ZYNTHIAN_MY_DATA_DIR/scripts/update_zynthian_sys.sh" ]; then
 	bash "$ZYNTHIAN_MY_DATA_DIR/scripts/update_zynthian_sys.sh"
 fi

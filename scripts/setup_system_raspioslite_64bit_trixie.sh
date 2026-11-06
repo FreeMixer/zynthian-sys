@@ -572,8 +572,9 @@ $ZYNTHIAN_RECIPE_DIR/install_mod-host.sh
 #Install MOD-UI
 $ZYNTHIAN_RECIPE_DIR/install_mod-ui.sh
 
-# Install OpenMixer: plugin-hostd, omx-clap-host, omx-plugins, omx-panel,
-# plugin-qualify and the qualification sync. Nothing else is changed.
+# Install OpenMixer as the default: plugin-hostd, omx-clap-host, omx-plugins,
+# omx-panel, plugin-qualify and the qualification sync. update_zynthian_sys.sh
+# below runs it again once the config exists.
 $ZYNTHIAN_RECIPE_DIR/install_openmixer.sh
 
 #Install MOD-SDK
