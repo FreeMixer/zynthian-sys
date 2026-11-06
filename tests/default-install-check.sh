@@ -92,6 +92,9 @@ assert_defaults() {
 	# plugin-hostd.conf: pins required, first-use for what is not qualified yet, the sync's pin file
 	check "plugin-hostd.conf: require_pins 1" test "$(conf "$PHD_CONF" require_pins)" = 1
 	check "plugin-hostd.conf: pin_mode first-use" test "$(conf "$PHD_CONF" pin_mode)" = first-use
+	# a plugin the LV2 adapter refuses is reported, never handed to mod-host behind the user's back
+	check "plugin-hostd.conf: lv2_worker omx-clap-host, never auto" test "$(conf "$PHD_CONF" lv2_worker)" = omx-clap-host
+	check "config/plugin-hostd.conf: lv2_worker omx-clap-host" test "$(conf "$SYS_DIR/config/plugin-hostd.conf" lv2_worker)" = omx-clap-host
 	check "plugin-hostd.conf: pin_file is the sync's ($(conf "$QUALIFY_CONF" pin_file))" \
 		test -n "$(conf "$PHD_CONF" pin_file)" -a "$(conf "$PHD_CONF" pin_file)" = "$(conf "$QUALIFY_CONF" pin_file)"
 	check "plugin-hostd.conf: qualification_dir is the sync's" \
@@ -197,6 +200,17 @@ recipe() {
 		>"$work/recipe.log" 2>&1
 	sed -n '/^OpenMixer defaults/,$p' "$work/recipe.log" | sed 's/^/   | /'
 }
+
+echo "-- lv2_worker auto left by an earlier update is changed on every run; mod-host chosen by hand stays"
+sed -i 's/^lv2_worker .*/lv2_worker auto/' "$PHD_CONF"
+update
+check "lv2_worker auto -> omx-clap-host" test "$(conf "$PHD_CONF" lv2_worker)" = omx-clap-host
+check "the update says so" grep -q 'lv2_worker auto -> omx-clap-host' "$work/update.log"
+check "plugin-hostd starts with the changed file" phd_starts
+sed -i 's/^lv2_worker .*/lv2_worker mod-host/' "$PHD_CONF"
+update
+check "lv2_worker mod-host set by hand is kept" test "$(conf "$PHD_CONF" lv2_worker)" = mod-host
+sed -i 's/^lv2_worker .*/lv2_worker omx-clap-host/' "$PHD_CONF"
 
 echo "== a plugin-qualify with no sync yet, then one with it"
 reset
