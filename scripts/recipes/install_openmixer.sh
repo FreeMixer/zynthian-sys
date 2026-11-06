@@ -116,7 +116,7 @@ missing=${missing# }
 
 if [ "$failed" = 0 ] && { [ "$upgrade" = 1 ] || { [ -n "$missing" ] && ! is_done packages; }; }; then
 	declare -A before
-	for p in $PACKAGES; do before[$p]=$(version_of "$p"); done
+	for p in $PACKAGES; do before[$p]=$(is_installed "$p" && version_of "$p"); done
 	# --upgrade takes them all to the newest; otherwise only the missing ones are installed
 	todo=$missing
 	[ "$upgrade" = 1 ] && todo=$PACKAGES

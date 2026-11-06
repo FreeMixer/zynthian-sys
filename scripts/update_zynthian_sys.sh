@@ -613,7 +613,7 @@ if [ "$(systemctl is-enabled omx-track-latest.timer)" != "enabled" ]; then
 	systemctl enable --now omx-track-latest.timer
 fi
 # the MOD GUI sync is omx-panel's unit (installed, never enabled by the package): this image turns it on
-if ! systemctl cat omx-modgui-sync >/dev/null 2>&1; then
+if ! systemctl list-unit-files omx-modgui-sync.service >/dev/null 2>&1; then
 	echo "The MOD GUI sync comes with omx-panel 0.4.0 or later: run scripts/recipes/install_openmixer.sh --upgrade"
 elif [ "$(systemctl is-enabled omx-modgui-sync)" != "enabled" ]; then
 	echo "Enabling the MOD GUI sync ..."
