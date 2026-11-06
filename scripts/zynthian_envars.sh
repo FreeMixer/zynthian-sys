@@ -92,6 +92,11 @@ export ZYNTHIAN_USB_MIDI_BY_PORT="0"
 export ZYNTHIAN_AUBIONOTES_OPTIONS="-O complex -t 0.5 -s -88  -p yinfft -l 0.5"
 #export ZYNTHIAN_AUBIONOTES_OPTIONS="-O hfc -t 0.5 -s -60 -p yinfft -l 0.6"
 
+# The engine the UI menus offer LV2 plugins through: jalv or plugin-hostd
+export ZYNTHIAN_PLUGIN_ENGINE="jalv"
+# The command port of the plugin-hostd the UI engine runs (mod-host keeps 5555)
+export ZYNTHIAN_PLUGIN_HOSTD_PORT="5570"
+
 # Directory Paths
 export ZYNTHIAN_DIR="/zynthian"
 export ZYNTHIAN_CONFIG_DIR="$ZYNTHIAN_DIR/config"
