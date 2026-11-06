@@ -4,8 +4,9 @@
 #
 #   plugin-hostd-start.sh <port> [<feedback port>]
 #
-# The one place a plugin-hostd is started on this image: the UI's plugin-hostd
-# engine runs it for its daemon on ZYNTHIAN_PLUGIN_HOSTD_PORT. Ready is the line the daemon
+# The one place a plugin-hostd is started on this image: mod-host-backend.sh
+# runs it for MOD-UI's daemon on 5555, and the UI's plugin-hostd engine runs it
+# for its own on ZYNTHIAN_PLUGIN_HOSTD_PORT. Ready is the line the daemon
 # declares in its protocol file (readiness.daemon_line), printed once both its
 # ports accept, and nothing else.
 #

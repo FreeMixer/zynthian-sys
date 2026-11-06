@@ -2,7 +2,7 @@
 #******************************************************************************
 # sbin/plugin-hostd-start.sh, the one place a plugin-hostd is started, waits
 # for the line plugin-hostd declares in its protocol.json and for nothing
-# else. The daemon here is a
+# else; mod-host-backend.sh start goes through it. The daemon here is a
 # stand-in that opens no port at all, so a wait on the ports could never pass.
 #
 #   tests/plugin-hostd-ready-check.sh
@@ -10,6 +10,7 @@
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 SBIN=$HERE/../sbin
+BACKEND=${BACKEND:-$SBIN/mod-host-backend.sh}
 START=${START:-$SBIN/plugin-hostd-start.sh}
 
 fails=0
@@ -34,11 +35,11 @@ chmod +x "$work/bin/plugin-hostd"
 echo '{"readiness": {"daemon_line": "fake-hostd is up", "worker_marker": "ready!"}}' >"$work/protocol.json"
 
 env_run() {
-	PATH="$work/bin:$PATH" ZYNTHIAN_CONFIG_DIR="$work/config" \
+	PATH="$work/bin:$PATH" ZYNTHIAN_CONFIG_DIR="$work/config" ZYNTHIAN_MODHOST_BACKEND=plugin-hostd \
 		PHD_STATE="$work/run" PHD_PROTOCOL="${PROTOCOL:-$work/protocol.json}" FAKE_ARGS="$work/args" \
 		READY_TIMEOUT=${READY_TIMEOUT:-3} "$@"
 }
-start() { env_run "$START" 59555 59556 2>&1; }
+start() { env_run env PORT=59555 FEEDBACK_PORT=59556 "$BACKEND" start 2>&1; }
 cleanup() {
 	pkill -f '^plugin-hostd .*-p 5955[57]( |$)' 2>/dev/null
 	pkill -f "$work/bin/plugin-hostd" 2>/dev/null
@@ -79,12 +80,12 @@ mkdir -p "$work/new"
 echo '{"readiness": {"daemon_line": "new-home is up"}}' >"$work/new/plugin-hostd.json"
 places="$work/new/plugin-hostd.json $work/protocol.json"
 out=$(PHD_PROTOCOL= PHD_PROTOCOL_PLACES="$places" FAKE_LINE="new-home is up" READY_TIMEOUT=2 \
-	env_run env PHD_PROTOCOL= PHD_PROTOCOL_PLACES="$places" "$START" 59555 59556 2>&1); rc=$?
+	env_run env PHD_PROTOCOL= PHD_PROTOCOL_PLACES="$places" PORT=59555 FEEDBACK_PORT=59556 "$BACKEND" start 2>&1); rc=$?
 check "plugin-hostd.json in the new home is read first" test $rc = 0
 cleanup
 rm "$work/new/plugin-hostd.json"
 out=$(FAKE_LINE="fake-hostd is up" READY_TIMEOUT=2 \
-	env_run env PHD_PROTOCOL= PHD_PROTOCOL_PLACES="$places" "$START" 59555 59556 2>&1); rc=$?
+	env_run env PHD_PROTOCOL= PHD_PROTOCOL_PLACES="$places" PORT=59555 FEEDBACK_PORT=59556 "$BACKEND" start 2>&1); rc=$?
 check "and protocol.json of a plugin-hostd before 0.16.0 when the new one is not there" test $rc = 0
 cleanup
 
@@ -102,6 +103,14 @@ check "and no second one is started" test "$(wc -l <"$work/args")" = 1
 check "nor a PID printed for it: it is not the caller's" test ! -s "$work/again"
 check "and it says so" grep -q "already running on port 59557" <<<"$out"
 cleanup
+
+echo "-- mod-host-backend.sh start goes through plugin-hostd-start.sh"
+mkdir -p "$work/sbin"
+cp "$BACKEND" "$work/sbin/mod-host-backend.sh"
+printf '#!/bin/bash\necho "$*" >"%s"\n' "$work/start-args" >"$work/sbin/plugin-hostd-start.sh"
+chmod +x "$work/sbin/plugin-hostd-start.sh"
+BACKEND="$work/sbin/mod-host-backend.sh" start >/dev/null
+check "with MOD-UI's ports" grep -qxF "59555 59556" "$work/start-args"
 
 echo "$fails failed"
 exit $((fails > 0))
